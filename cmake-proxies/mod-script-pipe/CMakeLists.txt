@@ -36,6 +36,7 @@ set_target_properties( ${TARGET}
       LIBRARY_OUTPUT_DIRECTORY_RELEASE "${_MODDIR}"
       LIBRARY_OUTPUT_DIRECTORY "${_MODDIR}"
       PREFIX ""
+      FOLDER "lib-src"
 )
 
 organize_source( "${TARGET_ROOT}" "" "${SOURCES}" )
