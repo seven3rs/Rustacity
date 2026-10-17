@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Rustacity: A Digital Audio Editor
+  Copyright (C) 2026 Sadik Pranto
+  SPDX-License-Identifier: GPL-2.0-or-later
+
+  The MSI installs the same build tree as the 7z beside it.  Most of the
+  tree - the wxWidgets libraries, the MSVC runtime, the Nyquist and plug-in
+  directories and the translations - is harvested into components.wxs at
+  build time, because that set follows the wxWidgets build rather than this
+  file.  What is written out here is the part that is ours: the product
+  identity, the shortcuts, the project file association, and the readme and
+  licence from the source tree.
+
+  Build it with (the tree being the same directory the 7z is made from):
+
+    heat dir <tree> -cg RustacityFiles -dr INSTALLFOLDER -srd -sreg -scom \
+         -ag -var var.BuildDir -out components.wxs
+    candle -arch x64 -dBuildDir=<tree> -dProductVersion=<version> \
+         -out <obj>\ rustacity.wxs components.wxs
+    light -out rustacity-win-<version>-x86_64.msi <obj>\*.wixobj
+
+  The product version is not defaulted: it has to agree with
+  src/Rustacity.h, which is what the application and the Inno installer
+  report, so it is passed in rather than copied here.
+-->
+<Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
+  <?define Manufacturer = "Rustacity Project" ?>
+  <?define ProjectUrl = "https://github.com/prantosmss/Rustacity" ?>
+
+  <!-- Stays the same for every release: Windows uses it to recognise a
+       newer version of the product as an upgrade of this one. -->
+  <?define UpgradeCode = "{AD241E87-312D-4440-8B7B-49A361D17D14}" ?>
+
+  <Product Id="*"
+           Name="Rustacity"
+           Language="1033"
+           Version="$(var.ProductVersion)"
+           Manufacturer="$(var.Manufacturer)"
+           UpgradeCode="$(var.UpgradeCode)">
+
+    <Package Id="*"
+             Keywords="Installer"
+             Description="Rustacity Setup"
+             Manufacturer="$(var.Manufacturer)"
+             InstallerVersion="500"
+             Compressed="yes"
+             InstallScope="perMachine"
+             Platform="x64" />
+
+    <MajorUpgrade DowngradeErrorMessage="A newer version of Rustacity is already installed." />
+    <MediaTemplate EmbedCab="yes" />
+
+    <Icon Id="RustacityIcon" SourceFile="$(sys.SOURCEFILEDIR)..\rustacity.ico" />
+    <Property Id="ARPPRODUCTICON" Value="RustacityIcon" />
+    <Property Id="ARPHELPLINK" Value="$(var.ProjectUrl)" />
+    <Property Id="ARPURLINFOABOUT" Value="$(var.ProjectUrl)" />
+
+    <Directory Id="TARGETDIR" Name="SourceDir">
+      <Directory Id="ProgramFiles64Folder">
+        <Directory Id="INSTALLFOLDER" Name="Rustacity" />
+      </Directory>
+      <!-- Declared so the shortcut components have a directory to live in;
+           Windows defines both of them. -->
+      <Directory Id="ProgramMenuFolder" />
+      <Directory Id="DesktopFolder" />
+    </Directory>
+
+    <DirectoryRef Id="INSTALLFOLDER">
+      <!-- The readme and the licence are in the source tree, not in the
+           build tree the rest of the files come from. -->
+      <Component Id="Readme" Guid="*">
+        <File Id="ReadmeMd" Source="$(sys.SOURCEFILEDIR)..\..\README.md" KeyPath="yes" />
+      </Component>
+
+      <Component Id="License" Guid="*">
+        <File Id="LicenseTxt" Source="$(sys.SOURCEFILEDIR)..\..\LICENSE.txt" KeyPath="yes" />
+      </Component>
+
+      <!-- The project file association, as the Inno installer registers it,
+           with no ProgId advertising so that a shortcut to a project behaves
+           like any other file. -->
+      <Component Id="ProjectExtension" Guid="*">
+        <RegistryKey Root="HKCR" Key=".aup">
+          <RegistryValue Type="string" Value="Rustacity.Project" />
+        </RegistryKey>
+      </Component>
+
+      <Component Id="ProjectProgId" Guid="*">
+        <RegistryKey Root="HKCR" Key="Rustacity.Project">
+          <RegistryValue Type="string" Value="Rustacity Project File" />
+          <RegistryKey Key="OpenWithList\rustacity.exe" />
+          <RegistryKey Key="shell\open\command">
+            <RegistryValue Type="string" Value="&quot;[INSTALLFOLDER]rustacity.exe&quot; &quot;%1&quot;" />
+          </RegistryKey>
+        </RegistryKey>
+      </Component>
+    </DirectoryRef>
+
+    <!-- Shortcuts are components of their own because heat owns the
+         executable.  Their key path is a per-user registry value because
+         the shortcuts are created in the Start Menu and on the Desktop,
+         which validation treats as the user's profile; the package
+         installs for all users, so Windows resolves both folders to the
+         all-users ones that the Inno installer also uses. -->
+    <DirectoryRef Id="ProgramMenuFolder">
+      <Component Id="StartMenuShortcut" Guid="*">
+        <Shortcut Id="StartMenuShortcutEntry"
+                  Name="Rustacity"
+                  Description="Rustacity: A Digital Audio Editor"
+                  Target="[INSTALLFOLDER]rustacity.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\Rustacity"
+                       Name="StartMenuShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <DirectoryRef Id="DesktopFolder">
+      <Component Id="DesktopShortcut" Guid="*">
+        <Shortcut Id="DesktopShortcutEntry"
+                  Name="Rustacity"
+                  Description="Rustacity: A Digital Audio Editor"
+                  Target="[INSTALLFOLDER]rustacity.exe"
+                  WorkingDirectory="INSTALLFOLDER" />
+        <RegistryValue Root="HKCU" Key="Software\Rustacity"
+                       Name="DesktopShortcut" Type="integer" Value="1" KeyPath="yes" />
+      </Component>
+    </DirectoryRef>
+
+    <Feature Id="ProductFeature" Title="Rustacity" Level="1">
+      <ComponentGroupRef Id="RustacityFiles" />
+      <ComponentRef Id="Readme" />
+      <ComponentRef Id="License" />
+      <ComponentRef Id="ProjectExtension" />
+      <ComponentRef Id="ProjectProgId" />
+      <ComponentRef Id="StartMenuShortcut" />
+      <ComponentRef Id="DesktopShortcut" />
+    </Feature>
+  </Product>
+</Wix>
