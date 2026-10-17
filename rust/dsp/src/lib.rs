@@ -17,6 +17,7 @@ pub mod biquad;
 pub mod distortion;
 pub mod ebur128;
 pub mod fft;
+pub mod interpolate_audio;
 pub mod phaser;
 pub mod wahwah;
 

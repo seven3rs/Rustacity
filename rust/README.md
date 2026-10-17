@@ -19,6 +19,7 @@ panic policy and the porting rule - is in
 | `dsp/src/wahwah.rs` | EffectWahwah's wah filter |
 | `dsp/src/distortion.rs` | EffectDistortion's waveshaper |
 | `dsp/src/fft.rs` | the FFT and the window functions |
+| `dsp/src/interpolate_audio.rs` | Repair's LSAR interpolation and the algebra under it |
 | `dsp/src/ffi.rs` | the C ABI: every entry point, each under a panic guard |
 | `dsp/include/rustacity_dsp.h` | the C header the C++ side includes |
 | `dsp/goldens/reference.txt` | reference values captured from the original C++ |
