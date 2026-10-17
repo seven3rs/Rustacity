@@ -9,12 +9,14 @@
 //! Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
 
 use core::ffi::c_int;
+use core::slice;
 use std::panic::{catch_unwind, AssertUnwindSafe};
 
 use crate::bass_treble::BassTreble;
 use crate::biquad::{self, Biquad};
 use crate::distortion::Distortion;
 use crate::ebur128::{self, Ebur128};
+use crate::fft;
 use crate::phaser::Phaser;
 use crate::wahwah::Wahwah;
 
@@ -499,6 +501,327 @@ pub extern "C" fn rustacity_ebur128_weighting_filter(
     })
 }
 
+/// The FFT and the window functions.
+///
+/// The tables a transform runs on belong to the C++ side, which pools one pair
+/// per length (its `GetFFT`); every entry point here takes them as arguments.
+/// `fftlen` is the whole transform: `fftlen / 2` ints of bit-reversal pointers
+/// and `fftlen` floats of sine values.
+///
+/// The C++ ran its transforms on lengths it had not checked - the complex one
+/// used to end the process on a length that was not a power of two - so the
+/// lengths and the pointers are checked here, and a call that cannot be run
+/// does nothing instead of reading out of its buffers.
+///
+/// The table pointers must not overlap the transform buffer.
+
+/// Whether a length can be transformed: at least two complex bins and a power
+/// of two.
+fn usable_fftlen(fftlen: usize) -> bool {
+    fftlen >= 4 && fftlen.is_power_of_two()
+}
+
+/// The tables of `fftlen` samples: bit-reversal pointers and sine values.
+///
+/// # Safety
+///
+/// `bit_reversed` must be valid for `fftlen / 2` ints and `sin_table` for
+/// `fftlen` floats.
+unsafe fn tables<'a>(fftlen: usize, bit_reversed: *const i32, sin_table: *const f32) -> (&'a [i32], &'a [f32]) {
+    (
+        unsafe { slice::from_raw_parts(bit_reversed, fftlen / 2) },
+        unsafe { slice::from_raw_parts(sin_table, fftlen) },
+    )
+}
+
+/// Fill the bit-reversal and sine tables of `fftlen` samples, which is the
+/// C++ `InitializeFFT` without its allocation: `bit_reversed` holds `fftlen / 2`
+/// ints and `sin_table` `fftlen` floats, and both are owned by the caller.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_init_tables(
+    fftlen: usize,
+    bit_reversed: *mut i32,
+    sin_table: *mut f32,
+) {
+    guard((), || {
+        if bit_reversed.is_null() || sin_table.is_null() || !usable_fftlen(fftlen) {
+            return;
+        }
+        // SAFETY: the caller allocated both tables for this length.
+        let bit_reversed = unsafe { slice::from_raw_parts_mut(bit_reversed, fftlen / 2) };
+        let sin_table = unsafe { slice::from_raw_parts_mut(sin_table, fftlen) };
+        fft::init_tables(fftlen, bit_reversed, sin_table);
+    });
+}
+
+/// The forward transform of a real signal, in place on a buffer of `fftlen`
+/// floats whose output is bit-reversed, the Fs/2 component in the imaginary
+/// half of the DC bin: `RealFFTf`.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_forward(
+    buffer: *mut f32,
+    fftlen: usize,
+    bit_reversed: *const i32,
+    sin_table: *const f32,
+) {
+    guard((), || {
+        if buffer.is_null() || bit_reversed.is_null() || sin_table.is_null() || !usable_fftlen(fftlen) {
+            return;
+        }
+        // SAFETY: by contract the buffer holds `fftlen` floats and the tables
+        // were built for that length; none of the three overlap.
+        let buffer = unsafe { slice::from_raw_parts_mut(buffer, fftlen) };
+        let (bit_reversed, sin_table) = unsafe { tables(fftlen, bit_reversed, sin_table) };
+        fft::forward(buffer, bit_reversed, sin_table);
+    });
+}
+
+/// The inverse transform to real data, in place on a bit-reversed buffer of
+/// `fftlen` conjugate-symmetric floats: `InverseRealFFTf`.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_inverse(
+    buffer: *mut f32,
+    fftlen: usize,
+    bit_reversed: *const i32,
+    sin_table: *const f32,
+) {
+    guard((), || {
+        if buffer.is_null() || bit_reversed.is_null() || sin_table.is_null() || !usable_fftlen(fftlen) {
+            return;
+        }
+        // SAFETY: as for `rustacity_fft_forward`.
+        let buffer = unsafe { slice::from_raw_parts_mut(buffer, fftlen) };
+        let (bit_reversed, sin_table) = unsafe { tables(fftlen, bit_reversed, sin_table) };
+        fft::inverse(buffer, bit_reversed, sin_table);
+    });
+}
+
+/// Undo the bit-reversal of a forward transform into the bins in order, DC and
+/// Fs/2 included: `ReorderToFreq`.  `real_out` and `imag_out` hold
+/// `fftlen / 2 + 1` floats each.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_reorder_to_freq(
+    bit_reversed: *const i32,
+    fftlen: usize,
+    buffer: *const f32,
+    real_out: *mut f32,
+    imag_out: *mut f32,
+) {
+    guard((), || {
+        if bit_reversed.is_null()
+            || buffer.is_null()
+            || real_out.is_null()
+            || imag_out.is_null()
+            || !usable_fftlen(fftlen)
+        {
+            return;
+        }
+        // SAFETY: by contract the buffer holds `fftlen` floats and the two
+        // outputs `fftlen / 2 + 1` floats each.
+        let buffer = unsafe { slice::from_raw_parts(buffer, fftlen) };
+        let bit_reversed = unsafe { slice::from_raw_parts(bit_reversed, fftlen / 2) };
+        let real_out = unsafe { slice::from_raw_parts_mut(real_out, fftlen / 2 + 1) };
+        let imag_out = unsafe { slice::from_raw_parts_mut(imag_out, fftlen / 2 + 1) };
+        fft::reorder_to_freq(bit_reversed, buffer, real_out, imag_out);
+    });
+}
+
+/// Undo the bit-reversal of an inverse transform into a real, interleaved
+/// time-domain buffer of `fftlen` floats: `ReorderToTime`.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_reorder_to_time(
+    bit_reversed: *const i32,
+    fftlen: usize,
+    buffer: *const f32,
+    time_out: *mut f32,
+) {
+    guard((), || {
+        if bit_reversed.is_null() || buffer.is_null() || time_out.is_null() || !usable_fftlen(fftlen) {
+            return;
+        }
+        // SAFETY: by contract the buffer and the output each hold `fftlen`
+        // floats.
+        let buffer = unsafe { slice::from_raw_parts(buffer, fftlen) };
+        let bit_reversed = unsafe { slice::from_raw_parts(bit_reversed, fftlen / 2) };
+        let time_out = unsafe { slice::from_raw_parts_mut(time_out, fftlen) };
+        fft::reorder_to_time(bit_reversed, buffer, time_out);
+    });
+}
+
+/// `RealFFT`: the transform of `fftlen` real samples into a conjugate-symmetric
+/// spectrum of `fftlen` values in `real_out` and `imag_out`.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_real(
+    fftlen: usize,
+    real_in: *const f32,
+    real_out: *mut f32,
+    imag_out: *mut f32,
+    bit_reversed: *const i32,
+    sin_table: *const f32,
+) {
+    guard((), || {
+        if real_in.is_null()
+            || real_out.is_null()
+            || imag_out.is_null()
+            || bit_reversed.is_null()
+            || sin_table.is_null()
+            || !usable_fftlen(fftlen)
+        {
+            return;
+        }
+        // SAFETY: by contract the input and both outputs hold `fftlen` floats.
+        let real_in = unsafe { slice::from_raw_parts(real_in, fftlen) };
+        let real_out = unsafe { slice::from_raw_parts_mut(real_out, fftlen) };
+        let imag_out = unsafe { slice::from_raw_parts_mut(imag_out, fftlen) };
+        let (bit_reversed, sin_table) = unsafe { tables(fftlen, bit_reversed, sin_table) };
+        fft::real_fft(real_in, real_out, imag_out, bit_reversed, sin_table);
+    });
+}
+
+/// `InverseRealFFT`: the inverse of `rustacity_fft_real`, whose first half is
+/// assumed conjugate-symmetric so the output of `fftlen` floats is purely real.
+/// `imag_in` may be null, in which case the imaginary parts are zero.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_inverse_real(
+    fftlen: usize,
+    real_in: *const f32,
+    imag_in: *const f32,
+    real_out: *mut f32,
+    bit_reversed: *const i32,
+    sin_table: *const f32,
+) {
+    guard((), || {
+        if real_in.is_null()
+            || real_out.is_null()
+            || bit_reversed.is_null()
+            || sin_table.is_null()
+            || !usable_fftlen(fftlen)
+        {
+            return;
+        }
+        // SAFETY: by contract the input arrays hold `fftlen` floats each, as
+        // does the output; `imag_in` is only read when it is not null.
+        let real_in = unsafe { slice::from_raw_parts(real_in, fftlen) };
+        let imag_in = if imag_in.is_null() {
+            None
+        } else {
+            Some(unsafe { slice::from_raw_parts(imag_in, fftlen) })
+        };
+        let real_out = unsafe { slice::from_raw_parts_mut(real_out, fftlen) };
+        let (bit_reversed, sin_table) = unsafe { tables(fftlen, bit_reversed, sin_table) };
+        fft::inverse_real_fft(real_in, imag_in, real_out, bit_reversed, sin_table);
+    });
+}
+
+/// `PowerSpectrum`: the squared magnitude of each coefficient of the real
+/// transform, `fftlen / 2 + 1` values in `out`.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_power_spectrum(
+    fftlen: usize,
+    input: *const f32,
+    out: *mut f32,
+    bit_reversed: *const i32,
+    sin_table: *const f32,
+) {
+    guard((), || {
+        if input.is_null()
+            || out.is_null()
+            || bit_reversed.is_null()
+            || sin_table.is_null()
+            || !usable_fftlen(fftlen)
+        {
+            return;
+        }
+        // SAFETY: by contract the input holds `fftlen` floats and the output
+        // `fftlen / 2 + 1`.
+        let input = unsafe { slice::from_raw_parts(input, fftlen) };
+        let out = unsafe { slice::from_raw_parts_mut(out, fftlen / 2 + 1) };
+        let (bit_reversed, sin_table) = unsafe { tables(fftlen, bit_reversed, sin_table) };
+        fft::power_spectrum(input, out, bit_reversed, sin_table);
+    });
+}
+
+/// The complex transform of `num_samples` samples, forwards or inverse, from
+/// `real_in` and `imag_in` (which may be null) into `real_out` and `imag_out`:
+/// the `FFT` of the C++ tree.  The bit table it keeps is released by
+/// `rustacity_fft_deinit`.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_complex(
+    num_samples: usize,
+    inverse_transform: c_int,
+    real_in: *const f32,
+    imag_in: *const f32,
+    real_out: *mut f32,
+    imag_out: *mut f32,
+) {
+    guard((), || {
+        if num_samples < 2
+            || !num_samples.is_power_of_two()
+            || real_in.is_null()
+            || real_out.is_null()
+            || imag_out.is_null()
+        {
+            return;
+        }
+        // SAFETY: by contract the input arrays hold `num_samples` floats each,
+        // as do the outputs; `imag_in` is only read when it is not null.
+        let real_in = unsafe { slice::from_raw_parts(real_in, num_samples) };
+        let imag_in = if imag_in.is_null() {
+            None
+        } else {
+            Some(unsafe { slice::from_raw_parts(imag_in, num_samples) })
+        };
+        let real_out = unsafe { slice::from_raw_parts_mut(real_out, num_samples) };
+        let imag_out = unsafe { slice::from_raw_parts_mut(imag_out, num_samples) };
+        fft::fft(real_in, imag_in, real_out, imag_out, inverse_transform != 0);
+    });
+}
+
+/// Release what `rustacity_fft_complex` caches: the C++ `DeinitFFT`.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_deinit() {
+    guard((), fft::deinit_fft);
+}
+
+/// `NewWindowFunc`: multiply `num_samples` values in place by the chosen window
+/// function, whose selector is the C++ `eWindowFunctions` value.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_window_func(
+    which_function: c_int,
+    num_samples: usize,
+    extra_sample: c_int,
+    data: *mut f32,
+) {
+    guard((), || {
+        if data.is_null() || num_samples == 0 {
+            return;
+        }
+        // SAFETY: by contract the buffer holds `num_samples` floats, which is
+        // as far as the window functions reach.
+        let data = unsafe { slice::from_raw_parts_mut(data, num_samples) };
+        fft::window_func(which_function, num_samples, extra_sample != 0, data);
+    });
+}
+
+/// `DerivativeOfWindowFunc`: multiply `num_samples` values in place by the
+/// derivative of the chosen window function.
+#[no_mangle]
+pub extern "C" fn rustacity_fft_derivative_of_window_func(
+    which_function: c_int,
+    num_samples: usize,
+    extra_sample: c_int,
+    data: *mut f32,
+) {
+    guard((), || {
+        if data.is_null() || num_samples == 0 {
+            return;
+        }
+        // SAFETY: as for `rustacity_fft_window_func`.
+        let data = unsafe { slice::from_raw_parts_mut(data, num_samples) };
+        fft::derivative_of_window_func(which_function, num_samples, extra_sample != 0, data);
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -621,5 +944,104 @@ mod tests {
             rustacity_ebur128_weighting_filter(48000.0, core::ptr::null_mut(), 0),
             0
         );
+    }
+
+    /// The FFT entry points must tolerate the same bad arguments, and lengths
+    /// that cannot be transformed: a non-power-of-two used to end the process
+    /// on the C++ side, and now does nothing.
+    #[test]
+    fn fft_entry_points_tolerate_bad_arguments() {
+        let mut scratch = [0.0f32; 16];
+        let mut table_i = [0i32; 8];
+        let mut table_f = [0.0f32; 16];
+        let cp = scratch.as_ptr();
+        let p = scratch.as_mut_ptr();
+        let (ti, tf) = (table_i.as_mut_ptr(), table_f.as_mut_ptr());
+        let (cti, ctf) = (table_i.as_ptr(), table_f.as_ptr());
+
+        rustacity_fft_init_tables(16, core::ptr::null_mut(), core::ptr::null_mut());
+        rustacity_fft_init_tables(12, ti, tf);
+        rustacity_fft_init_tables(2, ti, tf);
+        rustacity_fft_forward(core::ptr::null_mut(), 16, cti, ctf);
+        rustacity_fft_forward(p, 16, core::ptr::null(), core::ptr::null());
+        rustacity_fft_forward(p, 16, cti, core::ptr::null());
+        rustacity_fft_forward(p, 12, cti, ctf);
+        rustacity_fft_forward(p, 0, cti, ctf);
+        rustacity_fft_inverse(p, 12, cti, ctf);
+        rustacity_fft_inverse(core::ptr::null_mut(), 16, cti, ctf);
+        rustacity_fft_reorder_to_freq(
+            core::ptr::null(),
+            16,
+            cp,
+            core::ptr::null_mut(),
+            core::ptr::null_mut(),
+        );
+        rustacity_fft_reorder_to_time(core::ptr::null(), 16, cp, p);
+        rustacity_fft_reorder_to_time(cti, 12, cp, p);
+        rustacity_fft_real(
+            16,
+            core::ptr::null(),
+            core::ptr::null_mut(),
+            core::ptr::null_mut(),
+            cti,
+            ctf,
+        );
+        rustacity_fft_real(12, cp, p, p, cti, ctf);
+        rustacity_fft_inverse_real(
+            16,
+            cp,
+            core::ptr::null(),
+            core::ptr::null_mut(),
+            cti,
+            ctf,
+        );
+        rustacity_fft_inverse_real(12, cp, core::ptr::null(), p, cti, ctf);
+        rustacity_fft_power_spectrum(16, core::ptr::null(), core::ptr::null_mut(), cti, ctf);
+        rustacity_fft_power_spectrum(16, cp, core::ptr::null_mut(), cti, ctf);
+        rustacity_fft_complex(16, 0, core::ptr::null(), core::ptr::null(), p, p);
+        rustacity_fft_complex(3, 0, cp, core::ptr::null(), p, p);
+        rustacity_fft_complex(16, 0, cp, core::ptr::null(), p, core::ptr::null_mut());
+        rustacity_fft_window_func(0, 16, 0, core::ptr::null_mut());
+        rustacity_fft_window_func(2, 0, 1, p);
+        rustacity_fft_derivative_of_window_func(2, 0, 0, p);
+        rustacity_fft_derivative_of_window_func(2, 16, 1, core::ptr::null_mut());
+        rustacity_fft_deinit();
+    }
+
+    /// A transform taken through the C ABI, from the tables to the bins.
+    #[test]
+    fn fft_entry_points_transform() {
+        let fftlen = 16;
+        let points = fftlen / 2;
+        let mut bit_reversed = [0i32; 8];
+        let mut sin_table = [0.0f32; 16];
+        rustacity_fft_init_tables(
+            fftlen,
+            bit_reversed.as_mut_ptr(),
+            sin_table.as_mut_ptr(),
+        );
+
+        // A constant signal is all in the DC bin, at its own length.
+        let mut buffer = [1.0f32; 16];
+        rustacity_fft_forward(
+            buffer.as_mut_ptr(),
+            fftlen,
+            bit_reversed.as_ptr(),
+            sin_table.as_ptr(),
+        );
+        let mut real = [0.0f32; 9];
+        let mut imag = [0.0f32; 9];
+        rustacity_fft_reorder_to_freq(
+            bit_reversed.as_ptr(),
+            fftlen,
+            buffer.as_ptr(),
+            real.as_mut_ptr(),
+            imag.as_mut_ptr(),
+        );
+        assert_eq!(real[0], fftlen as f32);
+        assert_eq!(real[points], 0.0);
+        for i in 1..points {
+            assert_eq!((real[i], imag[i]), (0.0, 0.0));
+        }
     }
 }

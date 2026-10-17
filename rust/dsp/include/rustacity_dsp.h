@@ -184,6 +184,70 @@ double rustacity_ebur128_integrative_loudness(rustacity_ebur128_t *meter);
 int rustacity_ebur128_weighting_filter(double fs, rustacity_biquad_t *out,
                                        size_t cap);
 
+/* --- The FFT and the window functions --------------------------------- */
+
+/* The tables of a transform of `fftlen` samples belong to the C++ side, which
+ * pools one pair per length (GetFFT); every transform function takes them as
+ * arguments.  `bit_reversed` holds `fftlen / 2` ints and `sin_table` `fftlen`
+ * floats, and neither may overlap the transform buffer.
+ *
+ * A length that cannot be transformed - not a power of two, or shorter than
+ * four samples - is ignored, where the C++ complex transform used to end the
+ * process. */
+
+/* Fill the tables, which the C++ InitializeFFT did. */
+void rustacity_fft_init_tables(size_t fftlen, int *bit_reversed,
+                               float *sin_table);
+
+/* The forward and inverse transforms, in place on a buffer of `fftlen`
+ * floats.  The forward output is bit-reversed, with the Fs/2 component in the
+ * imaginary half of the DC bin; the inverse reads that same layout. */
+void rustacity_fft_forward(float *buffer, size_t fftlen,
+                           const int *bit_reversed, const float *sin_table);
+void rustacity_fft_inverse(float *buffer, size_t fftlen,
+                           const int *bit_reversed, const float *sin_table);
+
+/* Undo the bit-reversal into the bins in order - DC and Fs/2 included, so
+ * `fftlen / 2 + 1` values each - or into an interleaved time-domain buffer of
+ * `fftlen` floats. */
+void rustacity_fft_reorder_to_freq(const int *bit_reversed, size_t fftlen,
+                                   const float *buffer, float *real_out,
+                                   float *imag_out);
+void rustacity_fft_reorder_to_time(const int *bit_reversed, size_t fftlen,
+                                   const float *buffer, float *time_out);
+
+/* The real transform and its inverse over a buffer of `fftlen` floats.
+ * `imag_in` may be NULL, for input that is real only. */
+void rustacity_fft_real(size_t fftlen, const float *real_in, float *real_out,
+                        float *imag_out, const int *bit_reversed,
+                        const float *sin_table);
+void rustacity_fft_inverse_real(size_t fftlen, const float *real_in,
+                                const float *imag_in, float *real_out,
+                                const int *bit_reversed,
+                                const float *sin_table);
+
+/* The power spectrum of a real signal: `fftlen / 2 + 1` values. */
+void rustacity_fft_power_spectrum(size_t fftlen, const float *in, float *out,
+                                  const int *bit_reversed,
+                                  const float *sin_table);
+
+/* The complex transform, forwards or inverse; `imag_in` may be NULL.  It
+ * caches a bit-reversal table of its own, which the deinitialization below
+ * releases. */
+void rustacity_fft_complex(size_t num_samples, int inverse_transform,
+                           const float *real_in, const float *imag_in,
+                           float *real_out, float *imag_out);
+void rustacity_fft_deinit(void);
+
+/* Multiply `num_samples` values in place by the chosen window function, or by
+ * its derivative (assuming a unit sampling interval).  `which_function` is the
+ * C++ eWindowFunctions value. */
+void rustacity_fft_window_func(int which_function, size_t num_samples,
+                               int extra_sample, float *data);
+void rustacity_fft_derivative_of_window_func(int which_function,
+                                             size_t num_samples,
+                                             int extra_sample, float *data);
+
 #ifdef __cplusplus
 }
 #endif
