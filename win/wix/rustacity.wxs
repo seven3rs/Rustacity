@@ -18,11 +18,16 @@
          -ag -var var.BuildDir -out components.wxs
     candle -arch x64 -dBuildDir=<tree> -dProductVersion=<version> \
          -out <obj>\ rustacity.wxs components.wxs
-    light -out rustacity-win-<version>-x86_64.msi <obj>\*.wixobj
+    light -sice:ICE61 -out rustacity-win-<version>-x86_64.msi <obj>\*.wixobj
 
   The product version is not defaulted: it has to agree with
   src/Rustacity.h, which is what the application and the Inno installer
   report, so it is passed in rather than copied here.
+
+  The one silenced check is ICE61, which asks that an upgrade remove only
+  older versions of itself.  This package is meant to be able to remove
+  the very version it is installing, for the reason given at the upgrade
+  rule below.
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <?define Manufacturer = "Rustacity Project" ?>
@@ -48,7 +53,14 @@
              InstallScope="perMachine"
              Platform="x64" />
 
-    <MajorUpgrade DowngradeErrorMessage="A newer version of Rustacity is already installed." />
+    <!-- The application's own version stays 2.4.x across Rustacity
+         releases, so two of them can carry the same product version;
+         without this, MSI would treat them as two products and leave two
+         uninstall entries pointing at one directory.  Widening the upgrade
+         to cover the version being installed is what ICE61 warns about, so
+         that check is silenced where this is linked. -->
+    <MajorUpgrade AllowSameVersionUpgrades="yes"
+                  DowngradeErrorMessage="A newer version of Rustacity is already installed." />
     <MediaTemplate EmbedCab="yes" />
 
     <Icon Id="RustacityIcon" SourceFile="$(sys.SOURCEFILEDIR)..\rustacity.ico" />

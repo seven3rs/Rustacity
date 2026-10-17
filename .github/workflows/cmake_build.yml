@@ -201,7 +201,10 @@ jobs:
         candle -arch x64 "-dBuildDir=${TREE}" "-dProductVersion=${APP_VERSION}" \
           -out "${OBJ}" "$(cygpath -w "${PWD}/win/wix/rustacity.wxs")" \
           "$(cygpath -w "${PWD}/obj/components.wxs")"
-        light -out "${OBJ}rustacity-win-${APP_VERSION}-x86_64.msi" \
+        # ICE61 asks that an upgrade remove only older versions; this one
+        # has to be able to remove the version it is installing, because
+        # the application's version does not change between releases.
+        light -sice:ICE61 -out "${OBJ}rustacity-win-${APP_VERSION}-x86_64.msi" \
           "$(cygpath -w "${PWD}/obj/rustacity.wixobj")" \
           "$(cygpath -w "${PWD}/obj/components.wixobj")"
         mv "obj/rustacity-win-${APP_VERSION}-x86_64.msi" dist/
