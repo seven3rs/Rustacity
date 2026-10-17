@@ -248,6 +248,21 @@ void rustacity_fft_derivative_of_window_func(int which_function,
                                              size_t num_samples,
                                              int extra_sample, float *data);
 
+/* --- The repair interpolation ----------------------------------------- */
+
+/* InterpolateAudio: fill `num_bad` samples of `buffer` from `first_bad`,
+ * taking their values from the samples around the run, where the C++
+ * implementation in src/InterpolateAudio.cpp did.  A run that is empty, the
+ * whole buffer, or not inside it is ignored.
+ *
+ * The original added a trace of noise drawn from the process-global C library
+ * generator, which the application seeds from the clock, so two runs of the
+ * same repair differed in their last bits.  The core draws that noise from a
+ * generator of its own that starts at the same place every call, so this is
+ * reproducible. */
+void rustacity_interpolate_audio(float *buffer, size_t len, size_t first_bad,
+                                 size_t num_bad);
+
 #ifdef __cplusplus
 }
 #endif

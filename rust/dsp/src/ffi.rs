@@ -828,6 +828,28 @@ pub extern "C" fn rustacity_fft_derivative_of_window_func(
     });
 }
 
+/// `InterpolateAudio`: fill `num_bad` samples of the caller's buffer from
+/// `first_bad` with values interpolated from the samples around them.  The
+/// noise the interpolation adds comes from a generator the core starts at the
+/// same place every call, so the same arguments give the same output.
+#[no_mangle]
+pub extern "C" fn rustacity_interpolate_audio(
+    buffer: *mut f32,
+    len: usize,
+    first_bad: usize,
+    num_bad: usize,
+) {
+    guard((), || {
+        if buffer.is_null() || len == 0 {
+            return;
+        }
+        // SAFETY: by contract the caller owns `len` floats here, and the
+        // entry point writes only inside the run it was given.
+        let buffer = unsafe { slice::from_raw_parts_mut(buffer, len) };
+        crate::interpolate_audio::interpolate_audio(buffer, first_bad, num_bad);
+    });
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -1048,6 +1070,44 @@ mod tests {
         assert_eq!(real[points], 0.0);
         for i in 1..points {
             assert_eq!((real[i], imag[i]), (0.0, 0.0));
+        }
+    }
+
+    /// The interpolation entry point must tolerate the same bad arguments as
+    /// the rest: a null buffer, an empty run, and a run that is the whole
+    /// buffer or does not fit inside it, all do nothing.
+    #[test]
+    fn interpolate_entry_point_tolerates_bad_arguments() {
+        let mut buffer = [1.0f32; 8];
+        rustacity_interpolate_audio(core::ptr::null_mut(), 8, 0, 2);
+        rustacity_interpolate_audio(buffer.as_mut_ptr(), 0, 0, 2);
+        rustacity_interpolate_audio(buffer.as_mut_ptr(), 8, 4, 8);
+        rustacity_interpolate_audio(buffer.as_mut_ptr(), 8, 8, 2);
+        rustacity_interpolate_audio(buffer.as_mut_ptr(), 8, 6, 4);
+        rustacity_interpolate_audio(buffer.as_mut_ptr(), 8, 4, 0);
+        assert_eq!(buffer, [1.0f32; 8]);
+    }
+
+    /// An interpolation taken through the C ABI: the run is filled, the good
+    /// samples around it are left alone, and two calls give the same answer,
+    /// which they did not while the noise came from the C library's global
+    /// generator.
+    #[test]
+    fn interpolate_entry_point_fills_the_run() {
+        let input: Vec<f32> = (0..64)
+            .map(|i| ((i * 37) % 129) as f32 / 64.0 - 1.0)
+            .collect();
+        let mut first = input.clone();
+        let mut second = input.clone();
+
+        rustacity_interpolate_audio(first.as_mut_ptr(), 64, 20, 5);
+        rustacity_interpolate_audio(second.as_mut_ptr(), 64, 20, 5);
+
+        assert_eq!(first, second);
+        assert_eq!(first[..20], input[..20]);
+        assert_eq!(first[25..], input[25..]);
+        for i in 20..25 {
+            assert_ne!(first[i], input[i], "sample {} should have been filled", i);
         }
     }
 }
