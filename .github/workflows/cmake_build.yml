@@ -55,7 +55,7 @@ jobs:
             name: "Ubuntu_24.04",
             os: ubuntu-24.04,
             generator: "Unix Makefiles",
-            ext: "zip"
+            ext: "AppImage"
           }
         - {
             name: "macOS",
@@ -307,8 +307,12 @@ jobs:
         export LD_LIBRARY_PATH="/usr/local/lib"
 
         # Install required packages
+        #
+        # squashfs-tools and desktop-file-utils are what appimagetool runs
+        # to write the package: mksquashfs and desktop-file-validate.
         sudo apt-get update -y
         sudo apt-get install -y libgtk2.0-dev libasound2-dev gettext
+        sudo apt-get install -y squashfs-tools desktop-file-utils
         sudo apt-get remove -y ccache
 
         # Build wxWidgets if needed
@@ -341,42 +345,60 @@ jobs:
         # Build Rustacity
         cmake --build build --config Release
 
-        # "Install" Rustacity
-        cmake --install build --config Release --prefix "${DEST}"
+        # "Install" Rustacity into an AppDir
+        #
+        # The tree CMake installs is already the tree a Linux installation
+        # wants - bin/, lib/, share/applications, share/icons, share/mime -
+        # so the AppDir is that tree under usr/, with the three entries the
+        # format reads at its root: the desktop file, the icon it names, and
+        # AppRun.
+        APPDIR="rustacity.AppDir"
+        rm -rf "${APPDIR}"
+        cmake --install build --config Release --prefix "${APPDIR}/usr"
 
         # The Rust DSP core has to be linked in, not merely built: the C++
         # side calls it, and an unreferenced archive member is dropped from
         # the link, so a symbol that is present proves the core is used.
         # (Checked on Linux only - the check is about the shared CMake
         # wiring, and nm is not available on the Windows runners.)
-        if ! nm "${DEST}/bin/rustacity" | grep -q "rustacity_biquad_design_butterworth"
+        if ! nm "${APPDIR}/usr/bin/rustacity" | grep -q "rustacity_biquad_design_butterworth"
         then
-          echo "::error::The Rust DSP core is not linked into ${DEST}/bin/rustacity"
-          nm "${DEST}/bin/rustacity" | grep -i rustacity_ || true
+          echo "::error::The Rust DSP core is not linked into ${APPDIR}/usr/bin/rustacity"
+          nm "${APPDIR}/usr/bin/rustacity" | grep -i rustacity_ || true
           exit 1
         fi
 
-        # Create the lib directory
-        mkdir -p ${DEST}/lib
-
-        # Copy over wxWidgets libs
-        ldd ${DEST}/bin/rustacity
-        for lib in $(ldd ${DEST}/bin/rustacity | awk '/libwx/{print $3}')
+        # wxWidgets, beside the binary, where AppRun points the loader
+        mkdir -p "${APPDIR}/usr/lib"
+        ldd "${APPDIR}/usr/bin/rustacity"
+        for lib in $(ldd "${APPDIR}/usr/bin/rustacity" | awk '/libwx/{print $3}')
         do
-           echo ${lib}
-           ldd ${lib} | awk '/libwx/{print $3}'
-        done | sort -u | xargs cp -n -H -t ${DEST}/lib
+           echo "${lib}"
+           ldd "${lib}" | awk '/libwx/{print $3}'
+        done | sort -u | xargs cp -n -H -t "${APPDIR}/usr/lib"
 
-        # Create wrapper script
-        cat >"${DEST}/rustacity" <<"EOF"
+        cp "${APPDIR}/usr/share/applications/rustacity.desktop" "${APPDIR}/"
+        cp "${APPDIR}/usr/share/icons/hicolor/48x48/rustacity.png" "${APPDIR}/rustacity.png"
+
+        # AppRun starts the application from wherever the image is mounted,
+        # the way the wrapper script started it from the unpacked tree.
+        cat >"${APPDIR}/AppRun" <<"EOF"
         #!/bin/sh
-        export LD_LIBRARY_PATH="${0%/*}/lib:${LD_LIBRARY_PATH}"
-        "${0%/*}/bin/rustacity"
+        HERE=$(dirname "$(readlink -f "$0")")
+        export LD_LIBRARY_PATH="${HERE}/usr/lib${LD_LIBRARY_PATH:+:$LD_LIBRARY_PATH}"
+        exec "${HERE}/usr/bin/rustacity" "$@"
         EOF
-        chmod +x "${DEST}/rustacity"
+        chmod +x "${APPDIR}/AppRun"
 
-        # Create artifact (zipped as Github actions don't preserve permissions)
-        cmake -E tar c "${GITHUB_SHA}.zip" --format=zip "${DEST}"
+        # Create artifact
+        #
+        # appimagetool is run out of its own image, as the runners have no
+        # FUSE to mount it with.
+        curl -fsSL -o appimagetool \
+          https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
+        chmod +x appimagetool
+        ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
+          ./appimagetool "${APPDIR}" "${GITHUB_SHA}.AppImage"
 
     # =========================================================================
     # SHARED: Attach the artifact to the workflow results
@@ -491,17 +513,17 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#rustacity-}"
           TITLE="Rustacity ${VERSION}"
-          # Every platform artifact is a zip named after the commit, so the
-          # downloader would see the CI job that built it rather than the
-          # platform it holds.  Give each one the public name instead, and
-          # fail the release rather than publish a file the map does not
-          # know: an asset that appears under a job name is a mistake, not a
-          # fallback.
+          # Every platform artifact holds one file named after the
+          # commit, so the downloader would see the CI job that built
+          # it rather than the platform it holds.  Give each one the
+          # public name instead, and fail the release rather than
+          # publish a file the map does not know: an asset that
+          # appears under a job name is a mistake, not a fallback.
           mkdir -p assets
           while IFS= read -r f; do
             dir=$(basename "$(dirname "$f")")
             case "$dir" in
-              Ubuntu_24.04_*)  suffix="linux-${VERSION}-x86_64.zip" ;;
+              Ubuntu_24.04_*)  suffix="linux-${VERSION}-x86_64.AppImage" ;;
               macOS_*)         suffix="macOS-${VERSION}-x86_64.dmg" ;;
               Windows_64bit_*) suffix="win-${VERSION}-x86_64.7z" ;;
               *)
