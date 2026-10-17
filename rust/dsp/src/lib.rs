@@ -10,6 +10,7 @@ pub mod bass_treble;
 pub mod biquad;
 pub mod distortion;
 pub mod ebur128;
+pub mod fft;
 pub mod phaser;
 pub mod wahwah;
 
