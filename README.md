@@ -62,6 +62,8 @@ git push origin rustacity-0.4.0
 ```
 
 The tag push runs the `Publish Release` job. It waits for the build matrix and
-the Rust tests, takes the four platform zips from the run, names them
-`Rustacity-<version>-<platform>.zip`, and publishes the GitHub release with
-notes generated from the commits since the previous tag.
+the Rust tests, takes the four platform zips from the run, names each one after
+the platform it holds (`rustacity-<platform>-<version>-<arch>.zip`), attaches
+the tree the tag names (`rustacity-sources-<version>.tar.xz`), and publishes
+the GitHub release with notes generated from the commits since the previous
+tag.

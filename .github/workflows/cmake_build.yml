@@ -487,14 +487,36 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#rustacity-}"
           TITLE="Rustacity ${VERSION}"
-          # Every platform zip shares the same commit-zip basename, which
-          # would collide as release assets - give each one a unique name.
+          # Every platform artifact is a zip named after the commit, so the
+          # downloader would see the CI job that built it rather than the
+          # platform it holds.  Give each one the public name instead, and
+          # fail the release rather than publish a file the map does not
+          # know: an asset that appears under a job name is a mistake, not a
+          # fallback.
           mkdir -p assets
           while IFS= read -r f; do
             dir=$(basename "$(dirname "$f")")
-            cp "$f" "assets/Rustacity-${VERSION}-${dir}.zip"
+            case "$dir" in
+              Ubuntu_24.04_*)  suffix="linux-${VERSION}-x86_64.zip" ;;
+              macOS_*)         suffix="macOS-${VERSION}-x86_64.zip" ;;
+              Windows_32bit_*) suffix="win-${VERSION}-x86_32.zip" ;;
+              Windows_64bit_*) suffix="win-${VERSION}-x86_64.zip" ;;
+              *)
+                echo "::error::No release asset name is defined for the artifact '${dir}'"
+                exit 1
+                ;;
+            esac
+            cp "$f" "assets/rustacity-${suffix}"
           done < <(find dist -type f | sort)
-          FILES=(assets/*.zip)
+
+          # The tree the tag names, beside the binaries built from it.  This
+          # is not the source archives GitHub attaches by itself: they are
+          # generated from the tag as well, but this one is named with the
+          # release, as the platform assets are.
+          git archive --format=tar --prefix="rustacity-${VERSION}/" HEAD \
+            | xz -T0 > "assets/rustacity-sources-${VERSION}.tar.xz"
+
+          FILES=(assets/*.zip assets/*.tar.xz)
           if gh release view "${TAG}" >/dev/null 2>&1; then
             gh release upload "${TAG}" --clobber "${FILES[@]}"
           else
