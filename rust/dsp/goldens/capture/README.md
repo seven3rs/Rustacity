@@ -20,7 +20,7 @@ the `golden-values` artifact:
 
 * on a push (or a pull request) the job rides along with the rest of CI;
 * from the Actions tab, *Run workflow* runs the dumpers alone, without the
-  four platform builds (the `Goldens` job is the only job that runs).
+  platform builds (the `Goldens` job is the only job that runs).
 
 The job prints one `<unit>.txt` per dumper. Take those records, append them
 to `dsp/goldens/reference.txt`, and document them (source, capture run,

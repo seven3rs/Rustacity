@@ -63,7 +63,7 @@ set `panic = "abort"`.
 
 | job | what it does |
 | --- | --- |
-| `build` (4 platforms) | builds wxWidgets from the pinned fork (`audacity/wxWidgets`, branch `audacity-fixes-3.1.3`), then configures and builds the application with CMake - which compiles the Rust core and links it - and packages the platform artifact |
+| `build` (3 platforms) | builds wxWidgets from the pinned fork (`audacity/wxWidgets`, branch `audacity-fixes-3.1.3`), then configures and builds the application with CMake - which compiles the Rust core and links it - and packages the platform artifact |
 | `Rust Tests` | `cargo test --workspace` (unit tests and the golden-value tests) and `python3 scripts/check_dsp_abi.py` |
 | `Goldens` | builds and runs any dumper left in `rust/dsp/goldens/capture/` and uploads what they print as an artifact |
 | `Publish Release` | on a `rustacity-*` tag only: waits for the builds and the tests, names the platform zips after the platforms they hold, adds the source tarball of the tag, and publishes the release |
