@@ -7,7 +7,15 @@
 ;
 
 ; This requires that the ISS Preprocessor be installed
-#define AppExe "..\release\rustacity.exe" 
+
+; The tree the installer packages, which is the CMake output directory.
+; CI passes the packaged copy with ISCC /DReleaseDir=<dir>; a local build
+; can use the default.
+#ifndef ReleaseDir
+  #define ReleaseDir "..\..\build\bin\Release"
+#endif
+
+#define AppExe ReleaseDir + "\rustacity.exe"
 #define AppMajor ""
 #define AppMinor ""
 #define AppRev ""
@@ -22,7 +30,11 @@ Filename: "{app}\unins*.*";
 
 [Setup]
 ; compiler-related directives
-OutputBaseFilename=rustacity-win-{#AppVersion}
+OutputBaseFilename=rustacity-win-{#AppVersion}-x86_64
+
+; The application is built for 64-bit Windows only.
+ArchitecturesAllowed=x64compatible
+ArchitecturesInstallIn64BitMode=x64compatible
 
 WizardImageFile=".\rustacity_InnoWizardImage.bmp"
 WizardSmallImageFile=".\rustacity_InnoWizardSmallImage.bmp"
@@ -63,7 +75,7 @@ UninstallDisplayIcon="{app}\rustacity.exe"
 
 ; No longer force them to accept the license, just display it.   LicenseFile=..\LICENSE.txt
 InfoBeforeFile=".\rustacity_InnoWizard_InfoBefore.rtf"
-InfoAfterFile=..\..\README.txt
+InfoAfterFile=..\..\README.md
 
 ; We no longer produce new ANSI builds. 
 ; As we use Inno Setup (u), the Unicode version, to build this script, 
@@ -88,50 +100,29 @@ Name: resetPrefs; Description:  "{cm:ResetPrefs}"; Flags: unchecked
 ; Prime the first time .ini file so the permissions can be set
 Source: ".\FirstTimeModel.ini"; DestDir: "{app}"; DestName: "FirstTime.ini"; Permissions: users-modify
 
-; Don't display in separate window, rather as InfoAfterFile.   Source: "..\README.txt"; DestDir: "{app}"; Flags: ignoreversion isreadme
-Source: "..\..\README.txt"; DestDir: "{app}"; Flags: ignoreversion
+; Don't display in separate window, rather as InfoAfterFile.   Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion isreadme
+Source: "..\..\README.md"; DestDir: "{app}"; Flags: ignoreversion
 
 Source: "..\..\LICENSE.txt"; DestDir: "{app}"; Flags: ignoreversion
 Source: "{#AppExe}"; DestDir: "{app}"; Flags: ignoreversion
 
-; Manual, which should be got from the manual wiki using ..\scripts\mw2html_rustacity\wiki2htm.bat
-Source: "..\..\help\manual\*"; DestDir: "{app}\help\manual\"; Flags: ignoreversion recursesubdirs
+; Everything else comes from the build tree, in the shape the 7z beside
+; this installer holds: the installer unpacks that tree, it does not take
+; a second view of what belongs in it.  The manual and the effect presets
+; are not part of a build, so nothing is installed for them.
+;
+; The DLLs beside Rustacity.exe are the wxWidgets libraries it links
+; against and the MSVC runtime.  Putting the runtime beside the
+; executable is permitted, and expected by
+; http://www.fsf.org/licensing/licenses/gpl-faq.html#WindowsRuntimeAndGPL
+Source: "{#ReleaseDir}\*.dll"; DestDir: "{app}"; Flags: ignoreversion
 
-Source: "..\..\presets\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs
-
-; wxWidgets DLLs. Be specific (not *.dll) so we don't accidentally distribute avformat.dll, for example.
-; Don't use the WXWIN environment variable, because...
-; 1) Can't get the documented {%WXWIN|default dir} parsing to work.
-; 2) Need the DLL's in the release dir for testing, anyway.
-Source: "..\release\wxbase311u_xml_vc_custom.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\release\wxbase311u_vc_custom.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\release\wxmsw311u_adv_vc_custom.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\release\wxmsw311u_core_vc_custom.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\release\wxmsw311u_html_vc_custom.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\release\wxmsw311u_qa_vc_custom.dll"; DestDir: "{app}"; Flags: ignoreversion
-
-; MSVC runtime DLLs. Some users can't put these in the system dir, so just put them in the EXE dir.
-; It's legal, per http://www.fsf.org/licensing/licenses/gpl-faq.html#WindowsRuntimeAndGPL .
-; This is not an ideal solution, but should need the least tech support.
-; We'll know we have the right version, don't step on anybody else's older version, and
-; it's easy to make the zip (and they match better).
-; Copy the several required DLL's from 
-; "C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\redist\x86\Microsoft.VC120.CRT\"
-; or "C:\Program Files\Microsoft Visual Studio 12.0\VC\redist\x86\Microsoft.VC120.CRT\"
-; according to your system 
-Source: "..\release\concrt140.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\release\msvcp140.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\release\msvcp140_1.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\release\msvcp140_2.dll"; DestDir: "{app}"; Flags: ignoreversion
-Source: "..\release\vcruntime140.dll"; DestDir: "{app}"; Flags: ignoreversion
-
-Source: "..\release\languages\*"; DestDir: "{app}\Languages\"; Flags: ignoreversion recursesubdirs
+Source: "{#ReleaseDir}\Languages\*"; DestDir: "{app}\Languages\"; Flags: ignoreversion recursesubdirs createallsubdirs
 ; We don't ship all modules, so the next line is commented out
-; Source: "..\release\modules\*"; DestDir: "{app}\Modules\"; Flags: ignoreversion recursesubdirs skipifsourcedoesntexist
-Source: "..\release\nyquist\*"; DestDir: "{app}\Nyquist\"; Flags: ignoreversion recursesubdirs
-Source: "..\release\plug-ins\*"; DestDir: "{app}\Plug-Ins\"; Flags: ignoreversion
-Source: "..\release\modules\mod-script-pipe.dll"; DestDir: "{app}\modules\"; Flags: ignoreversion
-
+; Source: "{#ReleaseDir}\modules\*"; DestDir: "{app}\Modules\"; Flags: ignoreversion recursesubdirs createallsubdirs skipifsourcedoesntexist
+Source: "{#ReleaseDir}\nyquist\*"; DestDir: "{app}\Nyquist\"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#ReleaseDir}\plug-ins\*"; DestDir: "{app}\Plug-Ins\"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#ReleaseDir}\modules\mod-script-pipe.dll"; DestDir: "{app}\modules\"; Flags: ignoreversion
 [Icons]
 Name: "{commonprograms}\Rustacity"; Filename: "{app}\rustacity.exe"
 Name: "{commondesktop}\Rustacity"; Filename: "{app}\rustacity.exe"; Tasks: desktopicon
@@ -220,8 +211,10 @@ Filename: "{app}\rustacity.exe"; Description: "{cm:LaunchProgram,Rustacity}"; Fl
 ;
 ; http://www.jrsoftware.org/files/istrans/
 ;
-; Set this to the base of the unofficial  Inno Setup translations
-#define UrlBase "http://raw.github.com/jrsoftware/issrc/master/Files/Languages/Unofficial/"
+; The base jrsoftware.org serves the translation files from: the ones the
+; compiler ships with sit directly under Files/Languages, the rest under
+; Files/Languages/Unofficial.
+#define UrlBase "https://raw.githubusercontent.com/jrsoftware/issrc/refs/heads/main/Files/Languages/"
 
 ; This macro will use the Windows PowerShell to download the given translation into
 ; the Inno Setup Languages folder if it hasn't already been downloaded.
@@ -230,7 +223,7 @@ Filename: "{app}\rustacity.exe"; Description: "{cm:LaunchProgram,Rustacity}"; Fl
   Local[0] = "Languages\unofficial\" + Copy(URL, RPos("/", URL) + 1), \
   Local[1] = (FileExists(CompilerPath + Local[0]) \
     ? "alreadyexists" \
-    : Exec("powershell", "echo 'Downloading: " + URL + "'; $wc = new-object System.Net.WebClient; $wc.DownloadFile('" + URLBase + URL + "', '" + Local[0] + "')", , , SW_NORMAL)), \
+    : Exec("powershell", "echo 'Downloading: " + URL + "'; $wc = new-object System.Net.WebClient; $wc.DownloadFile('" + URLBase + URL + "', '" + CompilerPath + Local[0] + "')", , , SW_NORMAL)), \
   "compiler:" + Local[0]
 
 ; This macro will define a dummy translation based on the Defaults.isl
@@ -245,61 +238,61 @@ Filename: "{app}\rustacity.exe"; Description: "{cm:LaunchProgram,Rustacity}"; Fl
        WriteIni(Local[2], "LangOptions", "LanguageID", "$" + ID))), \
   "compiler:" + Local[1]
 
-Name: "af"; MessagesFile: "{#Get('Afrikaans.isl')}"
+Name: "af"; MessagesFile: "{#Get('Unofficial/Afrikaans.isl')}"
 Name: "ar"; MessagesFile: "{#Get('Arabic.isl')}"
-Name: "be"; MessagesFile: "{#Get('Belarusian.isl')}"
+Name: "be"; MessagesFile: "{#Get('Unofficial/Belarusian.isl')}"
 Name: "bg"; MessagesFile: "{#Get('Bulgarian.isl')}"
-Name: "bn"; MessagesFile: "{#Get('Bengali.islu')}"
-Name: "bs"; MessagesFile: "{#Get('Bosnian.isl')}"
+Name: "bn"; MessagesFile: "{#Get('Unofficial/Bengali.islu')}"
+Name: "bs"; MessagesFile: "{#Get('Unofficial/Bosnian.isl')}"
 Name: "ca"; MessagesFile: "compiler:Languages\Catalan.isl"
-Name: "ca_ES0valencia"; MessagesFile: "{#Get('Valencian.isl')}"
+Name: "ca_ES0valencia"; MessagesFile: "{#Get('Unofficial/Valencian.isl')}"
 ;Name: "co"; MessagesFile: "compiler:Languages\Corsican.isl"
 Name: "cs"; MessagesFile: "compiler:Languages\Czech.isl"
 Name: "cy"; MessagesFile: "{#Dummy('Welsh', '0452')}"
 Name: "da"; MessagesFile: "compiler:Languages\Danish.isl"
 Name: "de"; MessagesFile: "compiler:Languages\German.isl"
-Name: "el"; MessagesFile: "compiler:Languages\Greek.isl"
+Name: "el"; MessagesFile: "{#Get('Unofficial/Greek.isl')}"
 Name: "en"; MessagesFile: "compiler:Default.isl"
 Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
-Name: "eu"; MessagesFile: "{#Get('Basque.isl')}"
-Name: "fa"; MessagesFile: "{#Get('Farsi.isl')}"
+Name: "eu"; MessagesFile: "{#Get('Unofficial/Basque.isl')}"
+Name: "fa"; MessagesFile: "{#Get('Unofficial/Farsi.isl')}"
 Name: "fi"; MessagesFile: "compiler:Languages\Finnish.isl"
 Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
 Name: "ga"; MessagesFile: "{#Dummy('Gaeilge', '083C')}"
-Name: "gl"; MessagesFile: "{#Get('Galician.isl')}"
+Name: "gl"; MessagesFile: "{#Get('Unofficial/Galician.isl')}"
 Name: "he"; MessagesFile: "compiler:Languages\Hebrew.isl"
-Name: "hi"; MessagesFile: "{#Get('Hindi.islu')}"
-Name: "hr"; MessagesFile: "{#Get('Croatian.isl')}"
+Name: "hi"; MessagesFile: "{#Get('Unofficial/Hindi.islu')}"
+Name: "hr"; MessagesFile: "{#Get('Unofficial/Croatian.isl')}"
 Name: "hu"; MessagesFile: "compiler:Languages\Hungarian.isl"
-Name: "hy"; MessagesFile: "compiler:Languages\Armenian.islu"
-Name: "id"; MessagesFile: "{#Get('Indonesian.isl')}"
+Name: "hy"; MessagesFile: "compiler:Languages\Armenian.isl"
+Name: "id"; MessagesFile: "{#Get('Unofficial/Indonesian.isl')}"
 Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
 Name: "ja"; MessagesFile: "compiler:Languages\Japanese.isl"
-Name: "ka"; MessagesFile: "{#Get('Georgian.islu')}"
+Name: "ka"; MessagesFile: "{#Get('Unofficial/Georgian.isl')}"
 Name: "km"; MessagesFile: "{#Dummy('Khmer', '0409')}"
 Name: "ko"; MessagesFile: "{#Dummy('Korean', '0412')}"
 Name: "lt"; MessagesFile: "{#Get('Lithuanian.isl')}"
-Name: "mk"; MessagesFile: "{#Get('Macedonian.isl')}"
+Name: "mk"; MessagesFile: "{#Get('Unofficial/Macedonian.isl')}"
 Name: "my"; MessagesFile: "{#Dummy('Burmese', '0409')}"
 Name: "nb"; MessagesFile: "compiler:Languages\Norwegian.isl"
-;Name: "ne"; MessagesFile: "compiler:Languages\Nepali.islu"
+;Name: "ne"; MessagesFile: "{#Get('Unofficial/Nepali.islu')}"
 Name: "nl"; MessagesFile: "compiler:Languages\Dutch.isl"
-Name: "oc"; MessagesFile: "{#Get('Occitan.isl')}"
+Name: "oc"; MessagesFile: "{#Get('Unofficial/Occitan.isl')}"
 Name: "pl"; MessagesFile: "compiler:Languages\Polish.isl"
 Name: "pt_PT"; MessagesFile: "compiler:Languages\Portuguese.isl"
 Name: "pt_BR"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
-Name: "ro"; MessagesFile: "{#Get('Romanian.isl')}"
+Name: "ro"; MessagesFile: "{#Get('Unofficial/Romanian.isl')}"
 Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
 Name: "sk"; MessagesFile: "{#Get('Slovak.isl')}"
 Name: "sl"; MessagesFile: "compiler:Languages\Slovenian.isl"
-Name: "sr_RS"; MessagesFile: "compiler:Languages\SerbianCyrillic.isl"
-Name: "sr_RS0latin"; MessagesFile: "compiler:Languages\SerbianLatin.isl"
+Name: "sr_RS"; MessagesFile: "{#Get('Unofficial/SerbianCyrillic.isl')}"
+Name: "sr_RS0latin"; MessagesFile: "{#Get('Unofficial/SerbianLatin.isl')}"
 Name: "sv"; MessagesFile: "{#Get('Swedish.isl')}"
 Name: "ta"; MessagesFile: "{#Dummy('Tamil', '0449')}"
 Name: "tg"; MessagesFile: "{#Dummy('Tajik', '0428')}"
 Name: "tr"; MessagesFile: "compiler:Languages\Turkish.isl"
 Name: "uk"; MessagesFile: "compiler:Languages\Ukrainian.isl"
-;Name: "vi"; MessagesFile: "{#Get('Vietnamese.islu')}"
+;Name: "vi"; MessagesFile: "{#Get('Unofficial/Vietnamese.isl')}"
 Name: "zh_CN"; MessagesFile: "{#Get('ChineseSimplified.isl')}"
 Name: "zh_TW"; MessagesFile: "{#Get('ChineseTraditional.isl')}"
 
