@@ -48,20 +48,17 @@ jobs:
             name: "Windows_64bit",
             os: windows-2022,
             generator: "Visual Studio 17 2022",
-            platform: "x64",
-            ext: "7z"
+            platform: "x64"
           }
         - {
             name: "Ubuntu_24.04",
             os: ubuntu-24.04,
-            generator: "Unix Makefiles",
-            ext: "AppImage"
+            generator: "Unix Makefiles"
           }
         - {
             name: "macOS",
             os: macos-15-intel,
-            generator: "Xcode",
-            ext: "dmg"
+            generator: "Xcode"
           }
 
     steps:
@@ -173,9 +170,41 @@ jobs:
         cp -a build/bin/Release/* "${DEST}"
         rm -f "${DEST}"/{*.iobj,*.ipdb}
 
-        # Create artifact (archived as Github actions don't preserve
+        # Create artifacts (archived as Github actions don't preserve
         # permissions, and as the release publishes a 7z)
-        cmake -E tar c "${GITHUB_SHA}.7z" --format=7zip "${DEST}"
+        mkdir -p dist obj
+        cmake -E tar c "dist/${GITHUB_SHA}.7z" --format=7zip "${DEST}"
+
+        # The installers package the same tree, so a download holds one
+        # program however it is installed.  The version inside them is the
+        # one src/Rustacity.h declares, which is the number the application
+        # reports; the release renames the files after the tag.
+        TREE="$(cygpath -w "${PWD}/${DEST}")"
+        OUT="$(cygpath -w "${PWD}/dist")"
+        OBJ="$(cygpath -w "${PWD}/obj")\\"
+        APP_VERSION=$(sed -n \
+          -e 's/^#define RUSTACITY_VERSION[[:space:]]*\([0-9]\{1,\}\).*/\1/p' \
+          -e 's/^#define RUSTACITY_RELEASE[[:space:]]*\([0-9]\{1,\}\).*/\1/p' \
+          -e 's/^#define RUSTACITY_REVISION[[:space:]]*\([0-9]\{1,\}\).*/\1/p' \
+          src/Rustacity.h | paste -sd.)
+
+        # Inno Setup ships on the runner, and takes its options with a
+        # leading slash, which the shell would otherwise read as a path.
+        ISCC="$(command -v ISCC.exe || echo '/c/Program Files (x86)/Inno Setup 6/ISCC.exe')"
+        MSYS2_ARG_CONV_EXCL='*' "${ISCC}" /Qp "/DReleaseDir=${TREE}" "/O${OUT}" \
+          "$(cygpath -w "${PWD}/win/Inno_Setup_Wizard/rustacity.iss")"
+
+        # WiX: the file list is harvested from the tree, everything else
+        # is win/wix/rustacity.wxs.
+        heat dir "${TREE}" -cg RustacityFiles -dr INSTALLFOLDER -srd -sreg -scom \
+          -ag -var var.BuildDir -out "$(cygpath -w "${PWD}/obj/components.wxs")"
+        candle -arch x64 "-dBuildDir=${TREE}" "-dProductVersion=${APP_VERSION}" \
+          -out "${OBJ}" "$(cygpath -w "${PWD}/win/wix/rustacity.wxs")" \
+          "$(cygpath -w "${PWD}/obj/components.wxs")"
+        light -out "${OBJ}rustacity-win-${APP_VERSION}-x86_64.msi" \
+          "$(cygpath -w "${PWD}/obj/rustacity.wixobj")" \
+          "$(cygpath -w "${PWD}/obj/components.wixobj")"
+        mv "obj/rustacity-win-${APP_VERSION}-x86_64.msi" dist/
 
     # =========================================================================
     # MACOS: Build (for all versions of MacOS)
@@ -287,11 +316,11 @@ jobs:
         # the window out; it needs Finder scripting to place, so the image
         # is left plain for now.
         rm -rf dmgroot
-        mkdir -p dmgroot
+        mkdir -p dmgroot dist
         cp -a build/bin/Release/Rustacity.app dmgroot/
         ln -s /Applications dmgroot/Applications
         hdiutil create -volname "Rustacity" -srcfolder dmgroot -ov \
-          -format UDZO "${GITHUB_SHA}.dmg"
+          -format UDZO "dist/${GITHUB_SHA}.dmg"
 
     # =========================================================================
     # UBUNTU: Build (for all versions of Ubuntu)
@@ -397,17 +426,18 @@ jobs:
         curl -fsSL -o appimagetool \
           https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage
         chmod +x appimagetool
+        mkdir -p dist
         ARCH=x86_64 APPIMAGE_EXTRACT_AND_RUN=1 \
-          ./appimagetool "${APPDIR}" "${GITHUB_SHA}.AppImage"
+          ./appimagetool "${APPDIR}" "dist/${GITHUB_SHA}.AppImage"
 
     # =========================================================================
-    # SHARED: Attach the artifact to the workflow results
+    # SHARED: Attach the packages to the workflow results
     # =========================================================================
     - name: Upload artifact
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.config.name }}_${{ env.SHORTHASH }}
-        path: ${{ github.sha }}.${{ matrix.config.ext }}
+        path: dist/*
 
   # =========================================================================
   # RUST: Unit tests for the Rustacity Rust workspace (fast, independent)
@@ -513,25 +543,33 @@ jobs:
           TAG="${GITHUB_REF_NAME}"
           VERSION="${TAG#rustacity-}"
           TITLE="Rustacity ${VERSION}"
-          # Every platform artifact holds one file named after the
-          # commit, so the downloader would see the CI job that built
-          # it rather than the platform it holds.  Give each one the
-          # public name instead, and fail the release rather than
-          # publish a file the map does not know: an asset that
-          # appears under a job name is a mistake, not a fallback.
+          # A package says what it is by its name: the archives carry the
+          # commit they were built from, the installers the version inside
+          # them.  Both are the build's business, so each one is renamed
+          # here to the name it is published under, and a package the map
+          # does not know fails the release rather than being published as
+          # it stands.  Windows ships an archive and two installers; two
+          # packages of one kind is a mistake as well, so a published name
+          # may only be claimed once.
           mkdir -p assets
           while IFS= read -r f; do
-            dir=$(basename "$(dirname "$f")")
-            case "$dir" in
-              Ubuntu_24.04_*)  suffix="linux-${VERSION}-x86_64.AppImage" ;;
-              macOS_*)         suffix="macOS-${VERSION}-x86_64.dmg" ;;
-              Windows_64bit_*) suffix="win-${VERSION}-x86_64.7z" ;;
+            case "$(basename "$f")" in
+              *.7z)                suffix="win-${VERSION}-x86_64.7z" ;;
+              *.msi)               suffix="win-${VERSION}-x86_64.msi" ;;
+              rustacity-win-*.exe) suffix="win-${VERSION}-x86_64.exe" ;;
+              *.dmg)               suffix="macOS-${VERSION}-x86_64.dmg" ;;
+              *.AppImage)          suffix="linux-${VERSION}-x86_64.AppImage" ;;
               *)
-                echo "::error::No release asset name is defined for the artifact '${dir}'"
+                echo "::error::No release asset name is defined for '$(basename "$f")'"
                 exit 1
                 ;;
             esac
-            cp "$f" "assets/rustacity-${suffix}"
+            asset="assets/rustacity-${suffix}"
+            if [ -e "${asset}" ]; then
+              echo "::error::More than one package claims '$(basename "${asset}")'"
+              exit 1
+            fi
+            cp "$f" "${asset}"
           done < <(find dist -type f | sort)
 
           # The tree the tag names, beside the binaries built from it.  This

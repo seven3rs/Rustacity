@@ -63,10 +63,10 @@ set `panic = "abort"`.
 
 | job | what it does |
 | --- | --- |
-| `build` (3 platforms) | builds wxWidgets from the pinned fork (`audacity/wxWidgets`, branch `audacity-fixes-3.1.3`), then configures and builds the application with CMake - which compiles the Rust core and links it - and packages the platform artifact |
+| `build` (3 platforms) | builds wxWidgets from the pinned fork (`audacity/wxWidgets`, branch `audacity-fixes-3.1.3`), then configures and builds the application with CMake - which compiles the Rust core and links it - and packages it: a 7z, an MSI (WiX) and an installer (Inno Setup) on Windows, a disk image on macOS, an AppImage on Linux |
 | `Rust Tests` | `cargo test --workspace` (unit tests and the golden-value tests) and `python3 scripts/check_dsp_abi.py` |
 | `Goldens` | builds and runs any dumper left in `rust/dsp/goldens/capture/` and uploads what they print as an artifact |
-| `Publish Release` | on a `rustacity-*` tag only: waits for the builds and the tests, names the platform packages after the platforms they hold, adds the source tarball of the tag, and publishes the release |
+| `Publish Release` | on a `rustacity-*` tag only: waits for the builds and the tests, renames each package the run produced after the platform it holds, adds the source tarball of the tag, and publishes the release |
 
 Because the capture is what makes a goldens comparison meaningful, the build
 matrix is also the only check that the ports behave on Windows and macOS;
