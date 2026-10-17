@@ -3,7 +3,7 @@ name = "rustacity-dsp"
 version = "0.2.0"
 edition = "2021"
 license = "GPL-2.0-or-later"
-description = "DSP core of Rustacity: biquad filter design and EBU R128 loudness measurement"
+description = "DSP core of Rustacity: the filters, the effects' signal processing, EBU R128 loudness, the FFT and the window functions"
 publish = false
 
 [lib]
