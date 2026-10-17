@@ -15,7 +15,12 @@
 
    The move is a copy, not a revision.  The only substitutions are the ones
    wx-freedom forces: wxASSERT becomes assert and the wxWidgets containers
-   (Doubles, ArrayOf, Floats) become std::vector.
+   (Doubles, ArrayOf, Floats) become std::vector.  Two details come with
+   that: the const overload of the matrix subscript returns a const
+   reference, where ArrayOf, which does not propagate constness, let the
+   original hand out a mutable one, and the assert that opens the
+   interpolation drops its "firstBad >= 0", which an unsigned value cannot
+   fail.
 
    The Rust port replaces this file - see rust/dsp/src/interpolate_audio.rs
    and rust/dsp/goldens/capture/.
@@ -66,7 +71,7 @@ class Matrix
    Matrix& operator=(const Matrix& other);
 
    inline Vector& operator[](unsigned i) { return mRowVec[i]; }
-   inline Vector& operator[](unsigned i) const { return mRowVec[i]; }
+   inline const Vector& operator[](unsigned i) const { return mRowVec[i]; }
    inline unsigned Rows() const { return mRows; }
    inline unsigned Cols() const { return mCols; }
 

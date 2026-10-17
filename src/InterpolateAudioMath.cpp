@@ -417,7 +417,6 @@ void InterpolateAudio(float *buffer, const size_t len,
    const auto N = len;
 
    assert(len > 0 &&
-            firstBad >= 0 &&
             numBad < len &&
             firstBad+numBad <= len);
 
