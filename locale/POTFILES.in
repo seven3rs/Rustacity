@@ -116,8 +116,6 @@ src/Internat.cpp
 src/Internat.h
 src/InterpolateAudio.cpp
 src/InterpolateAudio.h
-src/InterpolateAudioMath.cpp
-src/InterpolateAudioMath.h
 src/KeyboardCapture.cpp
 src/KeyboardCapture.h
 src/LabelDialog.cpp

@@ -154,8 +154,6 @@ list( APPEND SOURCES
       Internat.h
       InterpolateAudio.cpp
       InterpolateAudio.h
-      InterpolateAudioMath.cpp
-      InterpolateAudioMath.h
       KeyboardCapture.cpp
       KeyboardCapture.h
       LabelDialog.cpp

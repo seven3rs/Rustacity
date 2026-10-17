@@ -15,15 +15,17 @@ finished only when the C++ implementation is deleted. This is the ledger.
 | wahwah | `src/effects/Wahwah.cpp` | `rust/dsp/src/wahwah.rs` | `wah-block` |
 | distortion waveshaper | `src/effects/Distortion.cpp` | `rust/dsp/src/distortion.rs` | `dis-block` |
 | FFT and window functions | `src/RealFFTf.cpp` and `src/FFT.cpp` (both transforms, the tables, the reorders and the window functions) | `rust/dsp/src/fft.rs` | the twelve `fft-*` kinds |
+| repair interpolation | `src/InterpolateAudio.cpp` and `src/Matrix.{h,cpp}` (the LSAR interpolation `Repair` calls, and the linear algebra under it) | `rust/dsp/src/interpolate_audio.rs` | `interp-rand`, `interp-lsar`, `interp-linear` |
 
 In every case the class in `src/effects/` stays. It owns the dialog, the
 parameter marshalling, the track iteration and the buffer copying, and calls a
 Rust handle per channel; the maths exists in exactly one place. The FFT is the
 same shape from outside `src/effects/`: `src/RealFFTf.cpp` keeps the pool of
-tables and `src/FFT.cpp` the translated window names, and both hand their
-tables to the Rust core. The record
-formats in `rust/dsp/goldens/reference.txt` name each unit's original C++
-source, which is the record of what was deleted.
+tables and `src/FFT.cpp` the translated window names, and both hand their tables
+to the Rust core. The repair interpolation is that shape again:
+`src/InterpolateAudio.cpp` keeps the entry point `Repair` calls, and the algebra
+is in the crate. The record formats in `rust/dsp/goldens/reference.txt` name
+each unit's original C++ source, which is the record of what was deleted.
 
 The four realtime effects are done and the set is closed: `SupportsRealtime`
 is overridden by exactly four built-in effects - BassTreble, Phaser, Wahwah

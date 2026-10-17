@@ -39,7 +39,7 @@ compiled with both files. A dumper names what it needs on top of its own file
 on a line of its own:
 
 ```cpp
-// capture-sources: src/InterpolateAudioMath.cpp
+// capture-sources: src/SomeUnit.cpp
 ```
 
 and the job adds those files to the compiler command, so a unit with a

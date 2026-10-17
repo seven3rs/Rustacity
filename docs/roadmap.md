@@ -14,6 +14,13 @@ The **FFT in Rust** has landed (`rust/dsp/src/fft.rs`, the arithmetic of
 frequency domain, are no longer waiting on one. The crate still has no
 dependencies.
 
+The **repair interpolation** has landed as well
+(`rust/dsp/src/interpolate_audio.rs`, the arithmetic of
+`src/InterpolateAudio.cpp` and `src/Matrix.{h,cpp}`): the first unit outside
+`src/effects/` to follow the FFT, and the first that drew on the C library's
+random numbers, which it now draws from a generator of its own so that a repair
+is reproducible.
+
 ## The extension engine
 
 The point of moving the DSP to Rust is the extension engine named on the
