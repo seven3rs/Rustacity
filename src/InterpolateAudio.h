@@ -8,7 +8,7 @@
 
 *******************************************************************//*!
 
-\file Matrix.h
+\file InterpolateAudio.h
 \brief General routine to interpolate (or even extrapolate small amounts)
  audio when a few of the samples are bad.  Works great for a few
  dozen bad samples, but not so well with hundreds.  Uses the
