@@ -116,6 +116,8 @@ src/Internat.cpp
 src/Internat.h
 src/InterpolateAudio.cpp
 src/InterpolateAudio.h
+src/InterpolateAudioMath.cpp
+src/InterpolateAudioMath.h
 src/KeyboardCapture.cpp
 src/KeyboardCapture.h
 src/LabelDialog.cpp
@@ -134,8 +136,6 @@ src/Lyrics.h
 src/LyricsWindow.cpp
 src/LyricsWindow.h
 src/MacroMagic.h
-src/Matrix.cpp
-src/Matrix.h
 src/MemoryX.h
 src/Menus.cpp
 src/Menus.h

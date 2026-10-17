@@ -1,32 +1,34 @@
 /**********************************************************************
 
-  Rustacity: A Digital Audio Editor
+   Rustacity: A Digital Audio Editor
 
-  Matrix.h
+   InterpolateAudioMath.h
 
-  Dominic Mazzoni
+   Dominic Mazzoni
 
-*******************************************************************//*!
+   The arithmetic of the LSAR audio interpolation, moved out of
+   InterpolateAudio.cpp, together with the linear algebra it is built on,
+   moved out of Matrix.cpp, so that it can be compiled on its own: no
+   wxWidgets, no application headers, nothing but <algorithm>, <cassert>,
+   <cmath>, <cstddef>, <cstdlib> and <vector>.  InterpolateAudio.cpp keeps
+   the entry point the application calls and Matrix.cpp is gone.
 
-\file Matrix.h
-\brief Holds both the Matrix and Vector classes, supporting
-  linear algebra operations, including matrix inversion.
-  Used by InterpolateAudio.
+   The move is a copy, not a revision.  The only substitutions are the ones
+   wx-freedom forces: wxASSERT becomes assert and the wxWidgets containers
+   (Doubles, ArrayOf, Floats) become std::vector.
 
-\class Matrix
-\brief Holds a matrix of doubles and supports arithmetic, subsetting,
-  and matrix inversion.  Used by InterpolateAudio.
+   The Rust port replaces this file - see rust/dsp/src/interpolate_audio.rs
+   and rust/dsp/goldens/capture/.
 
-\class Vector
-\brief Holds a matrix of doubles and supports arithmetic operations,
-  including Vector-Matrix operations.  Used by InterpolateAudio.
+***********************************************************************/
 
-*//*******************************************************************/
+#ifndef __RUSTACITY_INTERPOLATE_AUDIO_MATH_H__
+#define __RUSTACITY_INTERPOLATE_AUDIO_MATH_H__
 
-#ifndef __RUSTACITY_MATRIX__
-#define __RUSTACITY_MATRIX__
+#include <cstddef>
+#include <vector>
 
-#include "SampleFormat.h"
+namespace interp {
 
 class Matrix;
 
@@ -35,7 +37,7 @@ class Vector
  public:
    Vector();
    Vector(const Vector& copyFrom);
-   Vector(unsigned len, double *data=NULL);
+   Vector(unsigned len, double *data=nullptr);
    Vector(unsigned len, float *data);
    Vector& operator=(const Vector &other);
    ~Vector();
@@ -51,14 +53,14 @@ class Vector
 
  private:
    unsigned mN{ 0 };
-   Doubles mData;
+   std::vector<double> mData;
 };
 
 class Matrix
 {
  public:
    Matrix(const Matrix& copyFrom);
-   Matrix(unsigned rows, unsigned cols, double **data=NULL);
+   Matrix(unsigned rows, unsigned cols, double **data=nullptr);
    ~Matrix();
 
    Matrix& operator=(const Matrix& other);
@@ -75,7 +77,7 @@ class Matrix
 
    unsigned mRows;
    unsigned mCols;
-   ArrayOf<Vector> mRowVec;
+   std::vector<Vector> mRowVec;
 };
 
 bool InvertMatrix(const Matrix& input, Matrix& Minv);
@@ -108,6 +110,13 @@ Matrix MatrixSubset(const Matrix &M,
 
 Matrix MatrixConcatenateCols(const Matrix& left, const Matrix& right);
 
-bool InvertMatrix(const Matrix& M, Matrix& Minv);
+// See top of file for a description of the algorithm.  Interpolates
+// the samples from buffer[firstBad] through buffer[firstBad+numBad-1],
+// ignoring whatever value was there previously, and replacing them with
+// values determined from the surrounding audio.
+void InterpolateAudio(float *buffer, size_t len,
+                      size_t firstBad, size_t numBad);
 
-#endif // __RUSTACITY_MATRIX__
+} // namespace interp
+
+#endif // __RUSTACITY_INTERPOLATE_AUDIO_MATH_H__

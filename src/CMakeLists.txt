@@ -154,6 +154,8 @@ list( APPEND SOURCES
       Internat.h
       InterpolateAudio.cpp
       InterpolateAudio.h
+      InterpolateAudioMath.cpp
+      InterpolateAudioMath.h
       KeyboardCapture.cpp
       KeyboardCapture.h
       LabelDialog.cpp
@@ -172,8 +174,6 @@ list( APPEND SOURCES
       LyricsWindow.cpp
       LyricsWindow.h
       MacroMagic.h
-      Matrix.cpp
-      Matrix.h
       MemoryX.h
       Menus.cpp
       Menus.h
