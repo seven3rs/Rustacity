@@ -61,7 +61,7 @@ jobs:
             name: "macOS",
             os: macos-15-intel,
             generator: "Xcode",
-            ext: "zip"
+            ext: "dmg"
           }
 
     steps:
@@ -275,12 +275,23 @@ jobs:
         # Build Rustacity
         cmake --build build --config Release
 
-        # "Install" Rustacity
-        mkdir -p "${DEST}"
-        cp -a build/bin/Release/ "${DEST}"
-
-        # Create artifact (zipped as Github actions don't preserve permissions)
-        cmake -E tar c "${GITHUB_SHA}.zip" --format=zip "${DEST}"
+        # Create artifact
+        #
+        # The disk image holds the bundle and a link to the applications
+        # folder, so installing is dragging one onto the other.  Only the
+        # bundle goes in: build/bin/Release also holds a loose Wrapper, and
+        # that is a copy of the one the bundle already runs as its
+        # executable (Contents/MacOS/Wrapper).
+        #
+        # mac/Resources/Rustacity-DMG-background.png is the art for laying
+        # the window out; it needs Finder scripting to place, so the image
+        # is left plain for now.
+        rm -rf dmgroot
+        mkdir -p dmgroot
+        cp -a build/bin/Release/Rustacity.app dmgroot/
+        ln -s /Applications dmgroot/Applications
+        hdiutil create -volname "Rustacity" -srcfolder dmgroot -ov \
+          -format UDZO "${GITHUB_SHA}.dmg"
 
     # =========================================================================
     # UBUNTU: Build (for all versions of Ubuntu)
@@ -491,7 +502,7 @@ jobs:
             dir=$(basename "$(dirname "$f")")
             case "$dir" in
               Ubuntu_24.04_*)  suffix="linux-${VERSION}-x86_64.zip" ;;
-              macOS_*)         suffix="macOS-${VERSION}-x86_64.zip" ;;
+              macOS_*)         suffix="macOS-${VERSION}-x86_64.dmg" ;;
               Windows_64bit_*) suffix="win-${VERSION}-x86_64.7z" ;;
               *)
                 echo "::error::No release asset name is defined for the artifact '${dir}'"
