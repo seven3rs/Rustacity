@@ -43,10 +43,10 @@
 
 #include <wx/thread.h>
 
-// The arithmetic lives in FFTMath.cpp, which is free of wxWidgets so that the
-// golden-value dumpers can compile it on its own.  What is left here is the
-// tables and the pool of tables.
-#include "FFTMath.h"
+// The arithmetic of the transforms lives in the Rust core (rust/dsp, crate
+// "rustacity-dsp").  What is left here is the tables, the pool of tables, and
+// the calls through the C ABI declared in rust/dsp/include/rustacity_dsp.h.
+#include "rustacity_dsp.h"
 
 /*
 *  Initialize the Sine table and Twiddle pointers (bit-reversed pointers)
@@ -67,7 +67,7 @@ HFFT InitializeFFT(size_t fftlen)
 
    h->BitReversed.reinit(h->Points);
 
-   fftmath::InitTables(fftlen, h->BitReversed.get(), h->SinTable.get());
+   rustacity_fft_init_tables(fftlen, h->BitReversed.get(), h->SinTable.get());
 
    return h;
 }
@@ -139,8 +139,8 @@ void FFTDeleter::operator() (FFTParam *hFFT) const
 */
 void RealFFTf(fft_type *buffer, const FFTParam *h)
 {
-   fftmath::Forward(buffer, h->BitReversed.get(), h->SinTable.get(),
-                    h->Points * 2);
+   rustacity_fft_forward(buffer, h->Points * 2, h->BitReversed.get(),
+                         h->SinTable.get());
 }
 
 
@@ -165,19 +165,19 @@ void RealFFTf(fft_type *buffer, const FFTParam *h)
 */
 void InverseRealFFTf(fft_type *buffer, const FFTParam *h)
 {
-   fftmath::Inverse(buffer, h->BitReversed.get(), h->SinTable.get(),
-                    h->Points * 2);
+   rustacity_fft_inverse(buffer, h->Points * 2, h->BitReversed.get(),
+                         h->SinTable.get());
 }
 
 void ReorderToFreq(const FFTParam *hFFT, const fft_type *buffer,
 		   fft_type *RealOut, fft_type *ImagOut)
 {
-   fftmath::ReorderToFreq(hFFT->BitReversed.get(), hFFT->Points * 2,
-                          buffer, RealOut, ImagOut);
+   rustacity_fft_reorder_to_freq(hFFT->BitReversed.get(), hFFT->Points * 2,
+                                 buffer, RealOut, ImagOut);
 }
 
 void ReorderToTime(const FFTParam *hFFT, const fft_type *buffer, fft_type *TimeOut)
 {
-   fftmath::ReorderToTime(hFFT->BitReversed.get(), hFFT->Points * 2,
-                          buffer, TimeOut);
+   rustacity_fft_reorder_to_time(hFFT->BitReversed.get(), hFFT->Points * 2,
+                                 buffer, TimeOut);
 }

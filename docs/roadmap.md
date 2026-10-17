@@ -8,10 +8,11 @@ safe is in [`docs/architecture.md`](architecture.md), the ledger of what has
 moved is in [`docs/port-status.md`](port-status.md), and the numbers that keep
 a port honest are in [`docs/goldens.md`](goldens.md).
 
-The next enabler is an **FFT in Rust**: `NoiseReduction`, `NoiseRemoval`,
-`Equalization`/`Equalization48x` and `ClickRemoval` all work in the frequency
-domain, and the crate currently has no dependencies. That decision - write one
-or take one - comes before those four.
+The **FFT in Rust** has landed (`rust/dsp/src/fft.rs`, the arithmetic of
+`src/RealFFTf.cpp` and `src/FFT.cpp`), so `NoiseReduction`, `NoiseRemoval`,
+`Equalization`/`Equalization48x` and `ClickRemoval`, which all work in the
+frequency domain, are no longer waiting on one. The crate still has no
+dependencies.
 
 ## The extension engine
 

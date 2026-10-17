@@ -427,14 +427,8 @@ jobs:
           do
             name=$(basename "${src}" .cpp)
             echo "::group::${name}"
-            # Most of the units captured so far are one wx-free header; the FFT
-            # is a header and an implementation, so its dumper needs both.
-            extra=
-            case "${name}" in
-              fft) extra="src/FFTMath.cpp" ;;
-            esac
             g++ -std=c++17 -O2 -Wall -Wextra -Isrc -Isrc/effects \
-              -o "/tmp/${name}" "${src}" ${extra}
+              -o "/tmp/${name}" "${src}"
             "/tmp/${name}" | tee "out/${name}.txt"
             echo "::endgroup::"
           done

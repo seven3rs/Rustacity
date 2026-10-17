@@ -1,7 +1,7 @@
 # Port status
 
-The audio maths moves from `src/effects/` to `rust/dsp/src/`, one unit at a
-time, under the rule in [`docs/architecture.md`](architecture.md): a port is
+The audio maths moves from `src/` to `rust/dsp/src/`, one unit at a time,
+under the rule in [`docs/architecture.md`](architecture.md): a port is
 finished only when the C++ implementation is deleted. This is the ledger.
 
 ## Ported
@@ -14,10 +14,14 @@ finished only when the C++ implementation is deleted. This is the ledger.
 | phaser allpass chain | `src/effects/Phaser.cpp` | `rust/dsp/src/phaser.rs` | `ph-block` |
 | wahwah | `src/effects/Wahwah.cpp` | `rust/dsp/src/wahwah.rs` | `wah-block` |
 | distortion waveshaper | `src/effects/Distortion.cpp` | `rust/dsp/src/distortion.rs` | `dis-block` |
+| FFT and window functions | `src/RealFFTf.cpp` and `src/FFT.cpp` (both transforms, the tables, the reorders and the window functions) | `rust/dsp/src/fft.rs` | the twelve `fft-*` kinds |
 
 In every case the class in `src/effects/` stays. It owns the dialog, the
 parameter marshalling, the track iteration and the buffer copying, and calls a
-Rust handle per channel; the maths exists in exactly one place. The record
+Rust handle per channel; the maths exists in exactly one place. The FFT is the
+same shape from outside `src/effects/`: `src/RealFFTf.cpp` keeps the pool of
+tables and `src/FFT.cpp` the translated window names, and both hand their
+tables to the Rust core. The record
 formats in `rust/dsp/goldens/reference.txt` name each unit's original C++
 source, which is the record of what was deleted.
 
@@ -33,11 +37,10 @@ framework itself changing.
 bound to wxWidgets and to the application's event and dialog machinery. They
 are the shell the Rust core is called from, not audio maths.
 
-**Needs an FFT in Rust first.** `NoiseReduction`, `NoiseRemoval`,
-`Equalization` with `Equalization48x`, and `ClickRemoval` all work in the
-frequency domain. The crate has no dependencies today, so this needs a
-decision - write an FFT in the crate, or take a dependency - before any of
-them can move.
+**The frequency-domain effects are no longer waiting on anything.** The FFT
+`NoiseReduction`, `NoiseRemoval`, `Equalization` with `Equalization48x` and
+`ClickRemoval` need is now in the crate (`rust/dsp/src/fft.rs`), so any of
+them can be the next port. The crate still has no dependencies.
 
 **Too little maths to be worth a boundary.** `Amplify`, `Normalize`, `Fade`,
 `Invert`, `Reverse`, `Repeat`, `Silence`, `StereoToMono` and the tone, click

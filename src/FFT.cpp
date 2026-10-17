@@ -54,10 +54,11 @@
 
 #include "RealFFTf.h"
 
-// The arithmetic of the transforms and of the window functions is in
-// FFTMath.cpp, which is free of wxWidgets so that the golden-value dumpers
-// can compile it on its own.  What is left here is the table cache, the
-// scratch buffers and what the user reads.
+// The arithmetic of the transforms and of the window functions lives in the
+// Rust core (rust/dsp, crate "rustacity-dsp").  What is left here is the table
+// cache, the translated window names and the calls through the C ABI declared
+// in rust/dsp/include/rustacity_dsp.h.
+#include "rustacity_dsp.h"
 
 /*
  * Real Fast Fourier Transform
@@ -68,8 +69,8 @@
 void RealFFT(size_t NumSamples, const float *RealIn, float *RealOut, float *ImagOut)
 {
    auto hFFT = GetFFT(NumSamples);
-   fftmath::RealFFT(NumSamples, hFFT->BitReversed.get(), hFFT->SinTable.get(),
-                    RealIn, RealOut, ImagOut);
+   rustacity_fft_real(NumSamples, RealIn, RealOut, ImagOut,
+                      hFFT->BitReversed.get(), hFFT->SinTable.get());
 }
 
 /*
@@ -87,8 +88,8 @@ void InverseRealFFT(size_t NumSamples, const float *RealIn, const float *ImagIn,
 		    float *RealOut)
 {
    auto hFFT = GetFFT(NumSamples);
-   fftmath::InverseRealFFT(NumSamples, hFFT->BitReversed.get(),
-                           hFFT->SinTable.get(), RealIn, ImagIn, RealOut);
+   rustacity_fft_inverse_real(NumSamples, RealIn, ImagIn, RealOut,
+                              hFFT->BitReversed.get(), hFFT->SinTable.get());
 }
 
 /*
@@ -105,8 +106,8 @@ void InverseRealFFT(size_t NumSamples, const float *RealIn, const float *ImagIn,
 void PowerSpectrum(size_t NumSamples, const float *In, float *Out)
 {
    auto hFFT = GetFFT(NumSamples);
-   fftmath::PowerSpectrum(NumSamples, hFFT->BitReversed.get(),
-                          hFFT->SinTable.get(), In, Out);
+   rustacity_fft_power_spectrum(NumSamples, In, Out,
+                                hFFT->BitReversed.get(), hFFT->SinTable.get());
 }
 
 /*
@@ -118,12 +119,13 @@ void FFT(size_t NumSamples,
          const float *RealIn, const float *ImagIn,
 	 float *RealOut, float *ImagOut)
 {
-   fftmath::FFT(NumSamples, InverseTransform, RealIn, ImagIn, RealOut, ImagOut);
+   rustacity_fft_complex(NumSamples, InverseTransform ? 1 : 0, RealIn, ImagIn,
+                         RealOut, ImagOut);
 }
 
 void DeinitFFT()
 {
-   fftmath::DeinitFFT();
+   rustacity_fft_deinit();
 }
 
 /*
@@ -173,7 +175,7 @@ const TranslatableString WindowFuncName(int whichFunction)
 
 void NewWindowFunc(int whichFunction, size_t NumSamplesIn, bool extraSample, float *in)
 {
-   fftmath::NewWindowFunc(whichFunction, NumSamplesIn, extraSample, in);
+   rustacity_fft_window_func(whichFunction, NumSamplesIn, extraSample ? 1 : 0, in);
 }
 
 // See cautions in FFT.h !
@@ -202,5 +204,6 @@ void WindowFunc(int whichFunction, size_t NumSamples, float *in)
 
 void DerivativeOfWindowFunc(int whichFunction, size_t NumSamples, bool extraSample, float *in)
 {
-   fftmath::DerivativeOfWindowFunc(whichFunction, NumSamples, extraSample, in);
+   rustacity_fft_derivative_of_window_func(whichFunction, NumSamples,
+                                           extraSample ? 1 : 0, in);
 }

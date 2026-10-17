@@ -128,8 +128,6 @@ list( APPEND SOURCES
       Experimental.h
       FFT.cpp
       FFT.h
-      FFTMath.cpp
-      FFTMath.h
       FFmpeg.cpp
       FFmpeg.h
       FileException.cpp
