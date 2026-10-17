@@ -48,17 +48,20 @@ jobs:
             name: "Windows_64bit",
             os: windows-2022,
             generator: "Visual Studio 17 2022",
-            platform: "x64"
+            platform: "x64",
+            ext: "7z"
           }
         - {
             name: "Ubuntu_24.04",
             os: ubuntu-24.04,
-            generator: "Unix Makefiles"
+            generator: "Unix Makefiles",
+            ext: "zip"
           }
         - {
             name: "macOS",
             os: macos-15-intel,
-            generator: "Xcode"
+            generator: "Xcode",
+            ext: "zip"
           }
 
     steps:
@@ -170,8 +173,9 @@ jobs:
         cp -a build/bin/Release/* "${DEST}"
         rm -f "${DEST}"/{*.iobj,*.ipdb}
 
-        # Create artifact (zipped as Github actions don't preserve permissions)
-        cmake -E tar c "${GITHUB_SHA}.zip" --format=zip "${DEST}"
+        # Create artifact (archived as Github actions don't preserve
+        # permissions, and as the release publishes a 7z)
+        cmake -E tar c "${GITHUB_SHA}.7z" --format=7zip "${DEST}"
 
     # =========================================================================
     # MACOS: Build (for all versions of MacOS)
@@ -370,7 +374,7 @@ jobs:
       uses: actions/upload-artifact@v7
       with:
         name: ${{ matrix.config.name }}_${{ env.SHORTHASH }}
-        path: ${{ github.sha }}.zip
+        path: ${{ github.sha }}.${{ matrix.config.ext }}
 
   # =========================================================================
   # RUST: Unit tests for the Rustacity Rust workspace (fast, independent)
@@ -488,7 +492,7 @@ jobs:
             case "$dir" in
               Ubuntu_24.04_*)  suffix="linux-${VERSION}-x86_64.zip" ;;
               macOS_*)         suffix="macOS-${VERSION}-x86_64.zip" ;;
-              Windows_64bit_*) suffix="win-${VERSION}-x86_64.zip" ;;
+              Windows_64bit_*) suffix="win-${VERSION}-x86_64.7z" ;;
               *)
                 echo "::error::No release asset name is defined for the artifact '${dir}'"
                 exit 1
@@ -504,7 +508,7 @@ jobs:
           git archive --format=tar --prefix="rustacity-${VERSION}/" HEAD \
             | xz -T0 > "assets/rustacity-sources-${VERSION}.tar.xz"
 
-          FILES=(assets/*.zip assets/*.tar.xz)
+          FILES=(assets/*)
           if gh release view "${TAG}" >/dev/null 2>&1; then
             gh release upload "${TAG}" --clobber "${FILES[@]}"
           else
