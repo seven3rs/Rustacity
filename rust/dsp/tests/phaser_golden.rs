@@ -1,3 +1,9 @@
+// Rustacity: A Digital Audio Editor
+//
+// Copyright (C) 2026 Sadik Pranto
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //! Golden-value tests for the Phaser port.
 //!
 //! The expected values were captured from the ORIGINAL C++ implementation

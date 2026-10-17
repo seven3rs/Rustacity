@@ -1,6 +1,12 @@
+// Rustacity: A Digital Audio Editor
+//
+// Copyright (C) 2026 Sadik Pranto
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //! EffectWahwah's wah filter.
 //!
-//! Faithful port of the original C++ implementation
+//! Faithful port of the original C++ implementation by Nasca Octavian Paul
 //! (`src/effects/WahwahFilter.h`, the signal processing that used to sit in
 //! `src/effects/Wahwah.cpp`): an LFO sweeps a resonant lowpass filter across
 //! the spectrum.  Every operation is mirrored in the same order and precision,

@@ -1,10 +1,17 @@
+// Rustacity: A Digital Audio Editor
+//
+// Copyright (C) 2026 Sadik Pranto
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //! The real and complex FFTs and the window functions.
 //!
-//! Port of the arithmetic that used to live in `src/RealFFTf.cpp` and
-//! `src/FFT.cpp`, extracted into `src/FFTMath.cpp` for capture.  The C++ side
-//! keeps what is not arithmetic: the pool of tables and the lock that guards
-//! it, the scratch buffers of its callers, the argument checks and the
-//! translated window names.
+//! Port of the arithmetic that used to live in Philip Van Baren's
+//! `src/RealFFTf.cpp` and Dominic Mazzoni's `src/FFT.cpp`, extracted into
+//! `src/FFTMath.cpp` for capture.  The C++ side keeps what is not
+//! arithmetic: the pool of tables and the lock that guards it, the scratch
+//! buffers of its callers, the argument checks and the translated window
+//! names.
 //!
 //! The arithmetic is transcribed operation for operation, because the golden
 //! values in `rust/dsp/goldens/reference.txt` were captured from the C++ and

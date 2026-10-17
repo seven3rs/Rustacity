@@ -1,6 +1,12 @@
+// Rustacity: A Digital Audio Editor
+//
+// Copyright (C) 2026 Sadik Pranto
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //! EffectPhaser's allpass filter.
 //!
-//! Faithful port of the original C++ implementation
+//! Faithful port of the original C++ implementation by Nasca Octavian Paul
 //! (`src/effects/PhaserFilter.h`, the signal processing that used to sit in
 //! `src/effects/Phaser.cpp`): a cascade of allpass stages swept by an LFO,
 //! with feedback and a dry/wet mix.  Every operation is mirrored in the same

@@ -1,7 +1,13 @@
+// Rustacity: A Digital Audio Editor
+//
+// Copyright (C) 2026 Sadik Pranto
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //! Biquad digital filter design and processing.
 //!
-//! Faithful port of the original C++ implementation
-//! (`src/effects/Biquad.{h,cpp}`): every operation is mirrored in the
+//! Faithful port of the original C++ implementation by Norm C and Max
+//! Maisel (`src/effects/Biquad.{h,cpp}`): every operation is mirrored in the
 //! same order and precision, including the deliberate single-precision
 //! round trips (the C++ `Calc2D_DistSqr` returns `float`, so a `sqrt`
 //! of its result is performed in f32 before being widened to f64).

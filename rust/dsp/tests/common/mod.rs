@@ -1,3 +1,9 @@
+// Rustacity: A Digital Audio Editor
+//
+// Copyright (C) 2026 Sadik Pranto
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //! Shared helpers for the golden-value tests.
 //!
 //! The records come from `rust/dsp/goldens/reference.txt`, captured

@@ -1,6 +1,12 @@
+// Rustacity: A Digital Audio Editor
+//
+// Copyright (C) 2026 Sadik Pranto
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //! EBU R128 loudness measurement.
 //!
-//! Faithful port of the original C++ implementation
+//! Faithful port of the original C++ implementation by Max Maisel
 //! (`src/effects/EBUR128.{h,cpp}`): 400 ms measurement blocks with a
 //! 100 ms step, a 65536 bin loudness histogram and the K-weighting
 //! filter pair designed by `calc_weighting_filter` (sampling rate

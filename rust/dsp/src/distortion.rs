@@ -1,6 +1,12 @@
+// Rustacity: A Digital Audio Editor
+//
+// Copyright (C) 2026 Sadik Pranto
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //! EffectDistortion's waveshaper.
 //!
-//! Faithful port of the original C++ implementation
+//! Faithful port of the original C++ implementation by Steve Daulton
 //! (`src/effects/DistortionFilter.h`, the signal processing that used to sit in
 //! `src/effects/Distortion.cpp`): the effect shapes each sample through a
 //! lookup table of 2049 entries that it builds for the settings at hand, one

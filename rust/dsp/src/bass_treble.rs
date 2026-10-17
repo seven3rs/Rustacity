@@ -1,6 +1,12 @@
+// Rustacity: A Digital Audio Editor
+//
+// Copyright (C) 2026 Sadik Pranto
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //! The low and high shelf filters of EffectBassTreble.
 //!
-//! Faithful port of the original C++ implementation
+//! Faithful port of the original C++ implementation by Steve Daulton
 //! (`src/effects/BassTrebleFilter.h`, the signal processing that used to
 //! sit in `src/effects/BassTreble.cpp`): a low shelf at 250 Hz, a high
 //! shelf at 4 kHz and the effect's output gain.  Every operation is

@@ -1,3 +1,9 @@
+// Rustacity: A Digital Audio Editor
+//
+// Copyright (C) 2026 Sadik Pranto
+//
+// SPDX-License-Identifier: GPL-2.0-or-later
+
 //! C ABI of the DSP core.
 //!
 //! The declarations live in `include/rustacity_dsp.h`; every function
