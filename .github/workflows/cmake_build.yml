@@ -427,8 +427,11 @@ jobs:
           do
             name=$(basename "${src}" .cpp)
             echo "::group::${name}"
+            # A dumper that needs more than its own header to compile names the
+            # extra source files on a line of its own: "// capture-sources: ..."
+            extra=$(sed -n 's|^// capture-sources:||p' "${src}" | head -n 1)
             g++ -std=c++17 -O2 -Wall -Wextra -Isrc -Isrc/effects \
-              -o "/tmp/${name}" "${src}"
+              -o "/tmp/${name}" "${src}" ${extra}
             "/tmp/${name}" | tee "out/${name}.txt"
             echo "::endgroup::"
           done

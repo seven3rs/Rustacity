@@ -35,7 +35,16 @@ g++ -std=c++17 -O2 -Isrc -Isrc/effects -o /tmp/<unit> <unit>.cpp
 ```
 
 A unit that is a header and an implementation rather than a header alone is
-compiled with both files, which is the one case that needs `-Isrc`.
+compiled with both files. A dumper names what it needs on top of its own file
+on a line of its own:
+
+```cpp
+// capture-sources: src/InterpolateAudioMath.cpp
+```
+
+and the job adds those files to the compiler command, so a unit with a
+translation unit of its own is written down in the dumper and not in the
+workflow.
 
 The printed values depend on the C++ standard library's `libm`, so capture
 them on the same platform the checked-in values came from (Ubuntu, GCC/glibc)
