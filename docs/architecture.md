@@ -42,6 +42,14 @@ in `rust/dsp/src/ffi.rs`. The rules that keep it safe:
 - **The header and the exports must agree.** `scripts/check_dsp_abi.py` fails
   if they differ, so an entry point is added to both in the same commit.
 
+The `rustacity_fft_*` entry points are the exception to the handle rule, and
+deliberately so: a transform is arithmetic over buffers the caller already
+owns, and the tables it runs on (the bit-reversal pointers and the sine values)
+belong to the C++ pool `GetFFT` keeps, so they are passed in with each call
+rather than held in a handle. The only state on the Rust side is the bit table
+of the complex transform, which `rustacity_fft_deinit` releases at shutdown,
+exactly as the C++ freed `gFFTBitTable`.
+
 ## Panic policy
 
 `panic = "unwind"` in `Cargo.toml`, and every entry point runs under

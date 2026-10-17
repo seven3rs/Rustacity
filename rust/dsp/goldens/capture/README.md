@@ -7,10 +7,10 @@ reproduce byte for byte. They are the capture step of the porting rule in
 port, delete*. A dumper and the C++ unit it captured are deleted together,
 when the port is finished.
 
-Each dumper includes exactly one header from `src/effects/` — the unit that
-was moved out of its effect class for the capture. Anything a dumper needs
-from the outside is therefore a signal that the unit is not free of
-wxWidgets yet.
+Each dumper includes exactly one header from `src/` - normally one of the
+effect headers in `src/effects/`, which are the units that were moved out of
+their effect class for the capture. Anything a dumper needs from the outside is
+therefore a signal that the unit is not free of wxWidgets yet.
 
 ## Running them
 
@@ -30,9 +30,12 @@ them like any other record.
 To run a dumper by hand, from the root of the checkout:
 
 ```sh
-g++ -std=c++17 -O2 -Isrc/effects -o /tmp/<unit> <unit>.cpp
+g++ -std=c++17 -O2 -Isrc -Isrc/effects -o /tmp/<unit> <unit>.cpp
 /tmp/<unit>
 ```
+
+A unit that is a header and an implementation rather than a header alone is
+compiled with both files, which is the one case that needs `-Isrc`.
 
 The printed values depend on the C++ standard library's `libm`, so capture
 them on the same platform the checked-in values came from (Ubuntu, GCC/glibc)

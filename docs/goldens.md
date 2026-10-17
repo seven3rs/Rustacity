@@ -15,7 +15,8 @@ test` cases, so `cargo test --workspace` in `rust/` is the whole check.
 1. **Extract** the maths into a unit that compiles on its own - a header with
    no wxWidgets - and leave the effect class calling it, unchanged.
 2. **Add a dumper** to `rust/dsp/goldens/capture/`. It includes exactly one
-   header from `src/effects/` and prints the values the port must match.
+   header from `src/` - normally one of the effect headers in `src/effects/` -
+   and prints the values the port must match.
    Pushing is enough: the `Goldens` job in the workflow builds and runs it, or
    run that job alone from the Actions tab with *Run workflow*. Its
    `golden-values` artifact holds one `<unit>.txt` per dumper.
