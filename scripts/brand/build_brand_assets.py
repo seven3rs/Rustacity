@@ -402,7 +402,7 @@ def app_icons():
         write_xpm(render(ICON, width=size), ROOT / rel, symbol)
     # The scalable Linux icon is the brand SVG itself.
     (ROOT / "images/rustacity.svg").write_bytes(ICON.read_bytes())
-    for rel in ("win/rustacity.ico", "win/darkaudacity.ico"):
+    for rel in ("win/rustacity.ico",):
         write_ico(ROOT / rel, ICO_SIZES, lambda s: render(ICON, width=s))
     info = next((p for t, p in read_icns(ROOT / "mac/Resources/Rustacity.icns") if t == "info"), None)
     write_icns(

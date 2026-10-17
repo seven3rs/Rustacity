@@ -20,8 +20,8 @@ and which parts are inherited and must not be touched.
 | `nyquist/` | the Nyquist language runtime resources and system plug-ins | yes |
 | `plug-ins/` | bundled Nyquist plug-ins | yes |
 | `presets/` | shipped preset data (`EQDefaultCurves.xml`) | yes |
-| `scripts/` | our tooling - `scripts/brand/` (brand asset generation), `scripts/check_dsp_abi.py` (the ABI gate), `scripts/maketarball.cmake` - alongside inherited wiki and image utilities | partly |
-| `win/` | the Windows installer project (`Inno_Setup_Wizard/`), the application resource script and the icons it embeds, and `LADSPA_plugins-win/` | yes for `rustacity.rc` and the icons; the installer is not built |
+| `scripts/` | our tooling - `scripts/brand/` (brand asset generation) and `scripts/check_dsp_abi.py` (the ABI gate) - alongside inherited wiki and image utilities | partly |
+| `win/` | the Windows installers (`Inno_Setup_Wizard/` for the wizard, `wix/` for the MSI), the application resource script and the icon it embeds | yes for `rustacity.rc` and the icon; both installers are built in CI |
 | `mac/` | macOS bundle resources (`Resources/`), the bundle wrapper `Wrapper.c`, `Info.plist`, signing entitlements, and the local wxWidgets build helper | yes for `Wrapper.c` and `Resources/` |
 | `.github/` | CI - one workflow, `cmake_build.yml` | yes |
 | `docs/` | this documentation | no |
@@ -35,7 +35,7 @@ inherited GitHub meta-files.
 
 - `src/`, and everything the Rust migration touches inside it.
 - `rust/`.
-- `scripts/brand/`, `scripts/check_dsp_abi.py`, `scripts/maketarball.cmake`.
+- `scripts/brand/` and `scripts/check_dsp_abi.py`.
 - `docs/`, `README.md`, `.github/workflows/cmake_build.yml`.
 - The brand assets in `images/` and the icons and installer art in `win/` and
   `mac/Resources/`, all generated from `images/brand/` by
@@ -62,7 +62,7 @@ page. The only metric that tracks progress honestly is the ledger in
 
 The repository used to carry two CI systems, an entire second build system and
 the IDE projects for both desktop platforms, none of which any command we run
-referenced. It was removed in five commits, each of them checked with `git
+referenced. It was removed in six commits, each of them checked with `git
 grep` across the CMake tree and the workflow before anything was deleted:
 
 | commit | what went |
@@ -72,12 +72,14 @@ grep` across the CMake tree and the workflow before anything was deleted:
 | `chore: drop the unused doxygen config and QA scripts` | `rustacity.dox`, `dox2-src/`, `qa/` |
 | `chore: drop the autotools-only tests and upstream notes` | `tests/` (built and run by autotools only - the CMake build never compiled it), `todo.txt`, upstream `README.txt` and `CHANGELOG.txt` |
 | `chore: retire the Visual Studio and Xcode projects` | `win/rustacity.sln`, `win/Projects/`, `win/wxWidgets_additions/`, the MSBuild props/targets/rules, `Directory.Build.props`, `mac/Rustacity.xcodeproj/`, `mac/wxMac_additions/`, `mac/config/`, the xcconfigs, and the Xcode/dmg packaging scripts |
+| `chore: drop the files the build never read` | `win/LADSPA_plugins-win/` (a prebuilt plug-in set that nothing packaged), `win/darkaudacity.ico`, `scripts/maketarball.cmake` with the `minsrc` target that ran it, `mac/cmake_build.txt` |
 
 The CMake build is the only build. It generates its own Xcode project and
 Visual Studio solution, it drives the translations from `locale/` itself, and
-it needs the Windows installer to be revisited separately: see
-`win/Inno_Setup_Wizard/rustacity.iss`, which still reads the old `..\release\`
-output tree.
+the Windows installers are made from its output directory: the wizard in
+`win/Inno_Setup_Wizard/` and the MSI in `win/wix/`, both packaging the tree
+the 7z holds. The release's sources tarball is packed by the workflow, with
+`git archive`.
 
 ## Is a file still load-bearing?
 

@@ -401,7 +401,6 @@ foreach( line ${output} )
 endforeach()
 
 # Create short and full version strings
-set( RUSTACITY_DIST_VERSION ${RUSTACITY_VERSION}.${RUSTACITY_RELEASE}.${RUSTACITY_REVISION} )
 set( RUSTACITY_INFO_VERSION ${RUSTACITY_VERSION}.${RUSTACITY_RELEASE}.${RUSTACITY_REVISION}.${RUSTACITY_MODLEVEL} )
 
 # Define the version suffix (duplicates what happens in src/Rustacity.h)
@@ -434,7 +433,6 @@ add_subdirectory( "src" )
 add_subdirectory( "cmake-proxies/mod-null" )
 add_subdirectory( "cmake-proxies/mod-nyq-bench" )
 add_subdirectory( "cmake-proxies/mod-script-pipe" )
-add_subdirectory( "scripts" )
 
 # Uncomment what follows for symbol values.
 #[[
