@@ -151,8 +151,13 @@ benchmark, and no performance claim is made anywhere in this branch.
   over 1 MB. `rust/extensions/dist/` and `rust/target/` are ignored.
 - **No secrets.** A scan for private keys and known token prefixes
   (`-----BEGIN`, `ghp_`, `github_pat_`, `AKIA…`) finds only a public PGP block on
-  an inherited libsndfile donation page. The only absolute paths in the tree are
-  upstream vendored ones (`lib-src/portmidi`, `lib-src/libnyquist`).
+  an inherited libsndfile donation page. Every absolute path in the tree is
+  upstream's, in files this fork has not modified:
+  `scripts/piped-work/recording_test.py` names a path from the upstream author's
+  machine and is byte-identical to the `Audacity-2.4.1` tag, and the vendored
+  documentation and autotools files under `lib-src/` carry their usual examples.
+  Nothing under `src/`, `include/`, `rust/`, `docs/` or `examples/` names a path
+  from anybody's machine.
 - **No network code in the application.** There is no HTTP client at all: no
   `curl`/libcurl in `CMakeLists.txt` or `src/CMakeLists.txt`, no `wxHTTP`, no
   `wxWebRequest`. The only socket is the single-instance IPC on a local
