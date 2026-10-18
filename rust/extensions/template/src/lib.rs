@@ -96,10 +96,12 @@ pub extern "C" fn rx_init(sample_rate: f32, max_block_frames: i32, channels: i32
 #[no_mangle]
 pub extern "C" fn rx_set_param(index: i32, value: f32) {
     let state = state();
-    match index {
-        PARAM_AMOUNT => state.amount = value,
-        _ => {}
+    if index == PARAM_AMOUNT {
+        state.amount = value;
     }
+    // More than one parameter? Give each one a constant above, in the order
+    // extension.toml declares them, and a branch here for each: `match index`
+    // is what that looks like once there is more than one.
 }
 
 /// Processes `frames` frames of planar `f32` audio. This one does nothing;

@@ -452,6 +452,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
+      # The extension tests build their own WebAssembly fixtures before they
+      # run, so this target is needed here as well as in the extensions job.
+      - name: Add the WebAssembly target
+        run: rustup target add wasm32-wasip1
+
       - name: Run cargo tests
         working-directory: rust
         run: cargo test --workspace
@@ -503,6 +508,59 @@ jobs:
           if-no-files-found: ignore
 
   # =========================================================================
+  # EXTENSIONS: the WebAssembly extension engine, and the extensions it runs
+  #
+  # rust/extensions is a workspace of its own and is excluded from rust/, so
+  # that the cargo build inside the CMake build never builds wasm crates and a
+  # compiler upgrade for wasm cannot break the editor.  That also means a plain
+  # `cargo test --workspace` does not check the extensions' own code: this job
+  # does, as well as the engine's lint and format gates, which are scoped to
+  # the new crates because rust/dsp has lints from before this work (see
+  # docs/extensions/INTEGRATION_NOTES.md).
+  # =========================================================================
+  extensions:
+    name: Extensions
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Add the WebAssembly target
+        run: rustup target add wasm32-wasip1
+
+      # Every module in rust/extensions/variants.txt, laid out as installable
+      # extension directories under rust/extensions/dist.
+      - name: Build the extensions
+        run: scripts/build-extensions.sh
+
+      # rust/ext-host/include/rustacity_ext.h is written by hand and has to
+      # keep declaring what rust/ext-host/src/ffi.rs exports.
+      - name: Check the extension ABI against its header
+        run: python3 scripts/check_ext_abi.py
+
+      - name: Clippy
+        working-directory: rust
+        run: >
+          cargo clippy
+          -p rustacity-ext-api -p rustacity-ext-host -p rustacity-ext-cli
+          --all-targets -- -D warnings
+
+      - name: Formatting
+        working-directory: rust
+        run: >
+          cargo fmt
+          -p rustacity-ext-api -p rustacity-ext-host -p rustacity-ext-cli
+          --check
+
+      - name: Clippy, for the extensions themselves
+        working-directory: rust/extensions
+        run: cargo clippy --workspace --all-targets --target wasm32-wasip1 -- -D warnings
+
+      - name: Formatting, for the extensions themselves
+        working-directory: rust/extensions
+        run: cargo fmt --all --check
+
+  # =========================================================================
   # SHARED: Publish a GitHub Release when a tag is pushed
   #
   # The release is created with the RELEASE_TOKEN repository secret, which
@@ -510,10 +568,10 @@ jobs:
   # =========================================================================
   release:
     name: Publish Release
-    # Only run for tag pushes, after the build matrix and the Rust tests
-    # succeeded
+    # Only run for tag pushes, after the build matrix, the Rust tests and the
+    # extension engine have succeeded
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [ build, rust-test ]
+    needs: [ build, rust-test, extensions ]
     runs-on: ubuntu-latest
     # GITHUB_TOKEN only reads the workflow's artifacts here; the release
     # itself is published with RELEASE_TOKEN below.
