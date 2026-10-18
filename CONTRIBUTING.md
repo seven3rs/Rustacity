@@ -59,7 +59,9 @@ platforms; expect a run to take about twenty minutes.
   around you by hand there. The extension crates are held to both in CI:
   `cargo clippy --all-targets -- -D warnings` and `cargo fmt --check` over
   `rustacity-ext-api`, `rustacity-ext-host` and `rustacity-ext-cli`, and the
-  same two gates over `rust/extensions` for `wasm32-wasip1`.
+  manager crates, `rustacity-ext-manager` and `rustacity-ext-manager-gui`, are
+  held to both as well, and the same two gates over `rust/extensions` for
+  `wasm32-wasip1`.
 * **A port is not finished until the C++ implementation is deleted.** Capture
   the reference values while the C++ still exists - the loop is in
   [docs/goldens.md](docs/goldens.md) - and say so in the commit message when a

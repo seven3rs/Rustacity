@@ -19,6 +19,10 @@ with no dependencies. Beside it, `rust/ext-api/` holds the extension API's
 manifest and error types, and `rust/ext-host/` is the sandbox that runs
 WebAssembly extensions. `rust/ext-cli/` is a command-line tool for running one
 extension over one WAV file, and is not part of the application.
+`rust/ext-manager/` and `rust/ext-manager-gui/` are the extension manager: a
+listing and a window that read and rearrange the extensions directory
+([`docs/extensions/MANAGER.md`](extensions/MANAGER.md)). The application links
+none of the three.
 
 The CMake build names the two crates the application links - `cargo build
 --release -p rustacity-dsp -p rustacity-ext-host` - and links both results as
@@ -87,7 +91,9 @@ set `panic = "abort"`.
 | `Rust Tests` | adds the `wasm32-wasip1` target (the extension tests build their own WebAssembly fixtures), then `cargo test --workspace` (unit tests, the golden-value tests and the extension engine's tests) and `python3 scripts/check_dsp_abi.py` |
 | `Goldens` | builds and runs any dumper left in `rust/dsp/goldens/capture/` and uploads what they print as an artifact |
 | `Extensions` | builds every variant in `rust/extensions/variants.txt` for `wasm32-wasip1`, checks `rustacity_ext.h` against the host's FFI, and holds the three new crates - and the extension crates themselves - to `clippy -D warnings` and `cargo fmt --check` |
-| `Publish Release` | on a `rustacity-*` tag only: waits for the builds, the tests and the extension engine, renames each package the run produced after the platform it holds, adds the source tarball of the tag, and publishes the release |
+| `Extension manager` | holds `rustacity-ext-manager` and `rustacity-ext-manager-gui` to `clippy -D warnings` and `cargo fmt --check`. Their tests are part of the `Rust Tests` run above; the window is not opened here, because a runner has no display |
+| `CLI artifacts` | builds `rustacity-ext-cli` and the extensions for Linux, runs the quick start README.md documents on the committed sample - including that the generated sample is byte for byte the committed one - and packages the binary, the extensions and the contract documents into a tarball |
+| `Publish Release` | on a `rustacity-*` tag only: waits for the builds, the tests, the extension engine, the manager and the CLI archive, renames each package the run produced after the platform it holds, adds the source tarball of the tag, and publishes the release |
 
 Because the capture is what makes a goldens comparison meaningful, the build
 matrix is also the only check that the ports behave on Windows and macOS;

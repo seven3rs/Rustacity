@@ -59,8 +59,9 @@ Those numbers are accurate, not stale, and they are a poor measure of this
 project. When the extension engine landed the same report said: C 37.6%, C++
 21.5%, Python 15.0%, Shell 11.7%, Makefile 6.1%, and **Rust 0.81%** - 440 KB of
 the 54 MB it counts. `src/` is about 318,000 lines of C++; `rust/` is about
-13,000 lines of Rust, of which about 5,400 are the DSP core (`rust/dsp/src`)
-and the rest the extension engine, its tests and the example extensions. The C
+15,000 lines of Rust, of which about 5,400 are the DSP core (`rust/dsp/src`)
+and about 2,000 the extension manager and its window, and the rest the extension
+engine, its tests and the example extensions. The C
 and Python and Makefile shares are vendored `lib-src/` and build scaffolding,
 which is why they are worth being able to tell apart - hence this page. The
 only metric that tracks progress honestly is the ledger in
