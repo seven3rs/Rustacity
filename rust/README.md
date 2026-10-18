@@ -4,13 +4,21 @@
 `src/`, ported to Rust and linked into the C++ application as a static
 library. The project-level picture - the two halves, the ABI contract, the
 panic policy and the porting rule - is in
-[`docs/architecture.md`](../docs/architecture.md); this page is the crate.
+[`docs/architecture.md`](../docs/architecture.md); this page is mostly that
+crate.
+
+The same workspace also holds the sandboxed WebAssembly extension engine
+(`ext-api`, `ext-host` and the `ext-cli` tool), which is a separate subject with
+separate documentation: [`docs/extensions/API.md`](../docs/extensions/API.md),
+[`docs/extensions/SANDBOX.md`](../docs/extensions/SANDBOX.md),
+[`docs/extensions/WRITING_AN_EXTENSION.md`](../docs/extensions/WRITING_AN_EXTENSION.md)
+and [`docs/extensions/INTEGRATION_NOTES.md`](../docs/extensions/INTEGRATION_NOTES.md).
 
 ## Layout
 
 | path | what it is |
 | --- | --- |
-| `Cargo.toml` | the workspace; `panic = "unwind"` on purpose, see below |
+| `Cargo.toml` | the workspace; `panic = "unwind"` on purpose, see below (the `extensions/` workspace sets `panic = "abort"` instead, for the reason in [`docs/extensions/SANDBOX.md`](../docs/extensions/SANDBOX.md)) |
 | `dsp/src/lib.rs` | the module list |
 | `dsp/src/bass_treble.rs` | EffectBassTreble's low/high shelf filters |
 | `dsp/src/biquad.rs` | biquad filter design and processing |
@@ -25,6 +33,11 @@ panic policy and the porting rule - is in
 | `dsp/goldens/reference.txt` | reference values captured from the original C++ |
 | `dsp/goldens/capture/` | dumpers that print those values, one per port in progress |
 | `dsp/tests/` | golden-value tests that read that file |
+| `ext-api/src/` | the extension API's manifest, error type and limits |
+| `ext-host/src/ffi.rs` | the extension host's C ABI, matching `ext-host/include/rustacity_ext.h` |
+| `ext-host/src/` | the sandbox: Wasmtime, the deadline, the memory ceiling, the log |
+| `ext-cli/src/` | `rustacity-ext-cli`, running one extension over one WAV file |
+| `extensions/` | a workspace of its own: the example extensions and the hostile fixtures, built for `wasm32-wasip1` |
 
 ## Building and testing
 
@@ -33,12 +46,16 @@ cd rust
 cargo test --workspace
 ```
 
-The crate has no dependencies, so this needs nothing but a Rust toolchain. The
-C++ build runs `cargo build --release` itself (see `src/CMakeLists.txt`), so a
-Rust toolchain is required to build Rustacity at all.
+The DSP crate has no dependencies, so this needs nothing but a Rust toolchain.
+The extension host is the other way round: it bundles Wasmtime and Cranelift,
+which is why the C++ build asks for the two crates it links and nothing else
+(`cargo build --release -p rustacity-dsp -p rustacity-ext-host`, in
+`src/CMakeLists.txt`), and why a Rust toolchain is required to build Rustacity
+at all.
 
 `scripts/check_dsp_abi.py` compares this crate's exports with the C header and
 is run by CI; run it yourself after touching either side.
+`scripts/check_ext_abi.py` does the same for the extension host.
 
 ## Adding a module or an entry point
 

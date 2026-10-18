@@ -1,7 +1,8 @@
 # Architecture
 
 Rustacity is two halves joined by a C ABI: a C++ application that owns the
-user interface and the project, and a Rust core that owns the audio maths.
+user interface and the project, and a Rust core that owns the audio maths and
+runs WebAssembly extensions in a sandbox.
 
 ## The C++ shell
 
@@ -13,20 +14,39 @@ a caller of the Rust core.
 
 ## The Rust core
 
-`rust/dsp/` is the `rustacity-dsp` crate. It has no dependencies, and
-`src/CMakeLists.txt` runs `cargo build --release` during the CMake build and
-links the result as a static library, so a Rust toolchain is required to build
-Rustacity at all. The crate is also buildable and testable on its own:
+`rust/dsp/` is the `rustacity-dsp` crate: the audio maths, and the only crate
+with no dependencies. Beside it, `rust/ext-api/` holds the extension API's
+manifest and error types, and `rust/ext-host/` is the sandbox that runs
+WebAssembly extensions. `rust/ext-cli/` is a command-line tool for running one
+extension over one WAV file, and is not part of the application.
+
+The CMake build names the two crates the application links - `cargo build
+--release -p rustacity-dsp -p rustacity-ext-host` - and links both results as
+static libraries, so a Rust toolchain is required to build Rustacity at all.
+The workspace is also buildable and testable on its own:
 
 ```sh
 cd rust
 cargo test --workspace
 ```
 
+`rust/extensions/` is a workspace of its own, deliberately excluded from that
+one, holding the example extensions and the misbehaving fixtures the sandbox's
+tests run. They are built for `wasm32-wasip1`, never into the application. The
+extension side has documents of its own:
+[`docs/extensions/API.md`](extensions/API.md) is the contract,
+[`docs/extensions/SANDBOX.md`](extensions/SANDBOX.md) is what the sandbox is
+and is not, [`docs/extensions/WRITING_AN_EXTENSION.md`](extensions/WRITING_AN_EXTENSION.md)
+is how to write one, and
+[`docs/extensions/INTEGRATION_NOTES.md`](extensions/INTEGRATION_NOTES.md) says
+what is not built or tested yet.
+
 ## The ABI
 
 The C interface is `rust/dsp/include/rustacity_dsp.h`; the implementations are
-in `rust/dsp/src/ffi.rs`. The rules that keep it safe:
+in `rust/dsp/src/ffi.rs`. The extension host has a second one,
+`rust/ext-host/include/rustacity_ext.h`, held to the same rule by
+`scripts/check_ext_abi.py`. The rules that keep the DSP side safe:
 
 - **Opaque handles, one per channel.** A unit exposes `_new`, `_free` and a
   block call (usually `_process_block`), not one call per sample. The
@@ -63,10 +83,11 @@ set `panic = "abort"`.
 
 | job | what it does |
 | --- | --- |
-| `build` (3 platforms) | builds wxWidgets from the pinned fork (`audacity/wxWidgets`, branch `audacity-fixes-3.1.3`), then configures and builds the application with CMake - which compiles the Rust core and links it - and packages it: a 7z, an MSI (WiX) and an installer (Inno Setup) on Windows, a disk image on macOS, an AppImage on Linux |
-| `Rust Tests` | `cargo test --workspace` (unit tests and the golden-value tests) and `python3 scripts/check_dsp_abi.py` |
+| `build` (3 platforms) | builds wxWidgets from the pinned fork (`audacity/wxWidgets`, branch `audacity-fixes-3.1.3`), then configures and builds the application with CMake - which compiles the Rust cores and links them - and packages it: a 7z, an MSI (WiX) and an installer (Inno Setup) on Windows, a disk image on macOS, an AppImage on Linux |
+| `Rust Tests` | adds the `wasm32-wasip1` target (the extension tests build their own WebAssembly fixtures), then `cargo test --workspace` (unit tests, the golden-value tests and the extension engine's tests) and `python3 scripts/check_dsp_abi.py` |
 | `Goldens` | builds and runs any dumper left in `rust/dsp/goldens/capture/` and uploads what they print as an artifact |
-| `Publish Release` | on a `rustacity-*` tag only: waits for the builds and the tests, renames each package the run produced after the platform it holds, adds the source tarball of the tag, and publishes the release |
+| `Extensions` | builds every variant in `rust/extensions/variants.txt` for `wasm32-wasip1`, checks `rustacity_ext.h` against the host's FFI, and holds the three new crates - and the extension crates themselves - to `clippy -D warnings` and `cargo fmt --check` |
+| `Publish Release` | on a `rustacity-*` tag only: waits for the builds, the tests and the extension engine, renames each package the run produced after the platform it holds, adds the source tarball of the tag, and publishes the release |
 
 Because the capture is what makes a goldens comparison meaningful, the build
 matrix is also the only check that the ports behave on Windows and macOS;

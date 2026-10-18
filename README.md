@@ -6,7 +6,7 @@
 
 **An [Audacity](https://www.audacityteam.org) v2.4.1 fork created for the Rustaceans.**
 
-Rustacity is an easy-to-use, multi-track audio editor and recorder for Windows, Mac OS X, GNU/Linux and other operating systems. It keeps everything you know about Audacity, and will grow a Rust-based extension engine for adding new functionality.
+Rustacity is an easy-to-use, multi-track audio editor and recorder for Windows, Mac OS X, GNU/Linux and other operating systems. It keeps everything you know about Audacity, and grows a Rust core under it: parts of the audio processing, and a sandboxed WebAssembly engine for extensions.
 
 - **Recording** from any real, or virtual audio device that is available to the host system.
 - **Export / Import** a wide range of audio formats, extendible with FFmpeg.
@@ -27,11 +27,12 @@ Rustacity is an easy-to-use, multi-track audio editor and recorder for Windows, 
 | [Architecture](docs/architecture.md) | the C++ shell and the Rust core, the C ABI, the panic policy, what CI proves, and how a unit is ported |
 | [Port status](docs/port-status.md) | which DSP units are Rust, which are not yet, and why |
 | [Golden values](docs/goldens.md) | how each port is checked against the implementation it replaced |
-| [Roadmap](docs/roadmap.md) | an FFT in Rust next, then the extension engine |
+| [Extensions](docs/extensions/API.md) | the sandboxed WebAssembly extension engine: the API contract, the sandbox, how to write an extension, and what is not built yet |
+| [Roadmap](docs/roadmap.md) | what has moved to Rust, that the extension API has landed, and what the editor side still needs |
 
 ## Getting Started
 
-Rustacity is built from source with CMake. The build compiles the Rust core and links it, so a Rust toolchain is required in addition to a C++ one, and wxWidgets is not optional: the build wants the pinned fork (`audacity/wxWidgets`, branch `audacity-fixes-3.1.3`).
+Rustacity is built from source with CMake. The build compiles the Rust cores and links them, so a Rust toolchain is required in addition to a C++ one, and wxWidgets is not optional: the build wants the pinned fork (`audacity/wxWidgets`, branch `audacity-fixes-3.1.3`).
 
 The canonical recipe per platform is the CI workflow, [`.github/workflows/cmake_build.yml`](.github/workflows/cmake_build.yml) - what it runs is what produces the releases.
 
@@ -49,6 +50,12 @@ cargo test --workspace
 ```
 
 The ABI conventions, the panic policy and the rules for porting more of the audio engine to Rust are in [`docs/architecture.md`](docs/architecture.md), with the crate-level detail in [`rust/README.md`](rust/README.md).
+
+### The extension engine
+
+Beside the DSP core, `rust/ext-host/` runs sandboxed WebAssembly extensions: a directory with a manifest (`extension.toml`) and a module (`extension.wasm`) exporting eight functions. An extension gets the audio in blocks, one import for logging, and nothing else - no filesystem, no network, no environment - and a call that runs past its deadline, traps or runs out of memory takes that invocation down rather than the editor.
+
+The contract is [`docs/extensions/API.md`](docs/extensions/API.md), what the sandbox does and does not promise is [`docs/extensions/SANDBOX.md`](docs/extensions/SANDBOX.md), and [`docs/extensions/WRITING_AN_EXTENSION.md`](docs/extensions/WRITING_AN_EXTENSION.md) is the practical guide. The editor-side plumbing - where extensions are installed, the menu entry per extension and the parameter dialog - is not in place yet; [`docs/extensions/INTEGRATION_NOTES.md`](docs/extensions/INTEGRATION_NOTES.md) is precise about what is and is not built.
 
 ## Releasing
 

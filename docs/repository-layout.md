@@ -9,8 +9,8 @@ and which parts are inherited and must not be touched.
 
 | entry | what it is | in the build |
 | --- | --- | --- |
-| `src/` | the C++ application: the wxWidgets shell, the effect classes, the project and track model, the file formats | yes - `add_subdirectory( src )`, and `src/CMakeLists.txt` runs `cargo` and links the Rust core |
-| `rust/` | the Rust DSP core, crate `rustacity-dsp` (see [`docs/architecture.md`](architecture.md)) | yes - built by cargo, linked as a static library |
+| `src/` | the C++ application: the wxWidgets shell, the effect classes, the project and track model, the file formats | yes - `add_subdirectory( src )`, and `src/CMakeLists.txt` runs `cargo` and links the Rust cores |
+| `rust/` | the Rust DSP core, crate `rustacity-dsp`, and the sandboxed extension engine, crate `rustacity-ext-host`, with the extensions themselves in `rust/extensions/` (see [`docs/architecture.md`](architecture.md)) | yes - built by cargo, linked as static libraries |
 | `include/` | headers shared across `src/` | yes |
 | `lib-src/` | vendored third-party libraries (portaudio, libsndfile, LV2, libvorbis, ...) plus `lib-src/FileDialog/` | yes, through `cmake-proxies/` |
 | `cmake-proxies/` | the CMake project that builds each vendored library, plus the project's own CMake modules | yes |
@@ -45,17 +45,21 @@ Everything else is inherited from Audacity 2.4.1 or vendored third-party code.
 `lib-src/` is vendored: it is never edited to make our code fit, and never
 restructured.
 
-## Why GitHub reports a fraction of a percent of Rust
+## Why GitHub reports so little Rust
 
 GitHub counts bytes of code per language on the default branch. Before the
 cleanup below its numbers were: C 36%, C++ 22%, Python 14%, Shell 12%,
 Makefile 8%, M4 1.3%, Common Lisp 1.3%, and **Rust 0.22%**.
 
-That is accurate, not stale. `src/` is about 318,000 lines of C++ and the Rust
-core is about 3,500 lines: the bar will not move until `src/` is ported. The
-C and Python and Makefile shares are vendored `lib-src/` and build
-scaffolding, which is why they are worth being able to tell apart - hence this
-page. The only metric that tracks progress honestly is the ledger in
+Those numbers are accurate, not stale, and they are a poor measure of this
+project. When the extension engine landed the same report said: C 37.6%, C++
+21.5%, Python 15.0%, Shell 11.7%, Makefile 6.1%, and **Rust 0.81%** - 440 KB of
+the 54 MB it counts. `src/` is about 318,000 lines of C++; `rust/` is about
+13,000 lines of Rust, of which about 5,400 are the DSP core (`rust/dsp/src`)
+and the rest the extension engine, its tests and the example extensions. The C
+and Python and Makefile shares are vendored `lib-src/` and build scaffolding,
+which is why they are worth being able to tell apart - hence this page. The
+only metric that tracks progress honestly is the ledger in
 [`docs/port-status.md`](port-status.md).
 
 ## Inherited infrastructure that was removed

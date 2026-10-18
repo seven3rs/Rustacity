@@ -26,8 +26,32 @@ is reproducible.
 The point of moving the DSP to Rust is the extension engine named on the
 front page: a Rust-based layer for adding functionality to the editor. The C
 ABI, the panic policy and the golden-value discipline exist to make a Rust
-component something that can be added to the application without fear. The
-extension API itself does not exist yet.
+component something that can be added to the application without fear.
+
+**Version 1 of the API has landed** (`rust/ext-api`, `rust/ext-host`,
+`rust/ext-cli`, and the extension workspace under `rust/extensions/`): a
+manifest, eight exported functions, planar audio, one import for logging, and a
+sandbox that gives an extension five seconds of wall clock per call, 256 MiB of
+memory, a hollow WASI and nothing else. The contract is
+[`docs/extensions/API.md`](extensions/API.md), what the sandbox is and is not is
+[`docs/extensions/SANDBOX.md`](extensions/SANDBOX.md), and what has been built
+and tested - and what has not - is
+[`docs/extensions/INTEGRATION_NOTES.md`](extensions/INTEGRATION_NOTES.md).
+
+What the editor side still needs, in the order it becomes possible:
+
+- where installed extensions live, and a menu entry per extension: the
+  discovery that the LADSPA, LV2 and Nyquist modules already do for their own
+  formats. `src/effects/Extension.cpp` loads and runs one; nothing constructs
+  one yet;
+- a dialog for the parameters a manifest declares, which the host's C ABI
+  already describes;
+- audio that needs all channels at once, rather than one channel per call;
+- the capabilities the ABI deliberately does not have yet (`labels.write`,
+  `tracks.read`), which is what a label editor or a streaming analyzer would
+  need;
+- running an extension out of process, so that a sandbox failure costs a child
+  process rather than the editor.
 
 ## What is not going anywhere
 

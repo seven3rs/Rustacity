@@ -215,6 +215,11 @@ none of it is needed for the MSVC build CI uses.
 ```
 .github/workflows/cmake_build.yml   the Extensions job, and the two disclosed
                                     changes to rust-test and release
+README.md                           the front page, and the documentation table
+docs/architecture.md                the Rust core section, the ABI section and
+                                    the CI table
+docs/repository-layout.md           what rust/ is, and the language figures
+docs/roadmap.md                     the extension engine's section
 docs/extensions/API.md              the contract, brought in line with the engine
 docs/extensions/SANDBOX.md          what the sandbox is and is not
 docs/extensions/WRITING_AN_EXTENSION.md   how to write one
@@ -228,4 +233,5 @@ src/effects/Extension.cpp
 ```
 
 Nothing else in `src/`, `libraries/`, `lib-src/`, `plug-ins/` or `nyquist/` is
-touched, and no existing file, class or function was renamed.
+touched, and no existing file, class or function was renamed. Inside `rust/`,
+`rust/README.md` was brought up to date as well.
