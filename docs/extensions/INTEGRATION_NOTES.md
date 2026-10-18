@@ -124,66 +124,70 @@ was written on: the `Rust Tests` job installs the `wasm32-wasip1` target and
 passes `cargo test --workspace`, which builds the WebAssembly fixtures the
 containment tests load, and the `Extensions` job builds every variant in
 `variants.txt`, checks the header against the FFI, and applies the lint and
-format gates to the new crates. Both jobs pass for the Rust half of the tree;
-the application's own build is a separate job, and section 4 says where it
-stands.
+format gates to the new crates. Both jobs pass, and so do the three platform
+builds of the application itself; what that took is section 4.
 
 No benchmark numbers are quoted anywhere in this work, because none were
 measured under conditions worth quoting.
 
-## 4. What has not been built or tested
+## 4. What has been built, and what that took
 
-**The C++ effect was written without a compiler. CI has now compiled it once.**
-That first compile reported six errors in two groups, and both are fixed:
-`Effect` keeps its block size privately, so `SetBlockSize` hands the smaller
-value to the base class rather than assigning it, and the instance is told
-`GetBlockSize()`; and `XO(...).Format(...)` is a `TranslatableString`, not a
-`wxString`, which is what `Fail` now takes. Nothing else was reported, so the
-class shape, the overrides and the calls into the C ABI type-check against this
-version of `Effect`.
+This is the part of the work that could not be checked here at all - this
+machine has no wxWidgets, no MSVC and no CMake build tree - so it is worth
+saying exactly what CI found, because it found three things, and every one of
+them was real:
 
-The same build verified more of the glue than was possible here: the CMake
-custom command ran cargo for `x86_64-pc-windows-msvc`, and both
-`rustacity_dsp.lib` and `rustacity_ext.lib` were produced in the
-`target/<triple>/release` directory the link names - so the wiring, the MSVC
-library name and compiling Wasmtime with MSVC are observed rather than assumed.
+- **`Extension.cpp` had never been compiled.** Written to the shape of
+  `Invert.cpp` and `Reverse.cpp`, it had six errors in two groups, reported
+  identically by MSVC and by GCC: `Effect` keeps its block size privately, and
+  `XO(...).Format(...)` is a `TranslatableString` rather than a `wxString`.
+  `SetBlockSize` now hands the smaller size to the base class - which is exactly
+  what `Effect::ProcessPass` calls at `Effect.cpp:1451` - and the instance is
+  told `GetBlockSize()`; `Fail` takes the type `MessageBox` wants. Nothing else
+  was reported, so the class shape, the overrides and every call into the C ABI
+  type-check against this `Effect`.
+- **The link failed on Linux and only on Linux**, with one undefined symbol:
+  `EffectExtension::MaximumBlockFrames`. The repository builds as C++14, where a
+  `static constexpr` data member is a declaration until something binds a
+  reference to it, and `std::min` takes its argument by reference. MSVC does not
+  insist on the definition and GCC does; there is now a definition.
+- **The CMake was wrong in two ways that only two generators could see.** A
+  custom command with two outputs is two rules, and so two cargo runs, to the
+  Visual Studio generator - the first Windows build ran cargo twice, 5m51s and
+  then 1m06s - and the Xcode generator refuses a custom command attached to more
+  than one target, so the macOS job never reached a compiler: it failed while
+  generating the build files, and said so plainly. The sandbox's library is now
+  a byproduct of the single command, and one custom target drives it, which is
+  the arrangement CMake's own documentation prescribes for a command that more
+  than one target needs. The next Windows build asked cargo once.
 
-It also found two things about the CMake around it, both since fixed. A custom
-command with two outputs is two rules, and two cargo runs, to the Visual Studio
-generator; and the Xcode generator refuses a custom command attached to more
-than one target, so the macOS job never reached a compiler at all - it failed
-while generating the build files, with CMake saying so plainly. The sandbox's
-library is now a byproduct of the command rather than a second output, and one
-custom target drives it, which is the arrangement CMake's own documentation
-prescribes for a command that more than one target needs.
+After those three fixes every job passes, on every platform: the application
+compiles, links and packages with the sandbox inside it under MSVC, GCC and
+Xcode; `cargo test --workspace` passes on Linux with the containment tests in
+it; and the `Extensions` job builds every variant and applies the lint and
+format gates. That the wiring works, that the library names are right for these
+three triples, that the DSP core's MSVC system libraries (`bcrypt userenv
+ws2_32 ntdll dbghelp psapi`) are enough for Wasmtime too, and that a static
+Wasmtime links into the application at all are therefore observed rather than
+assumed.
 
-What remains unverified:
-
-- **the link.** That first build stopped at the compile error, before linking,
-  so the sandbox has not been linked into the application on any platform yet;
-- that the MSVC system library list that was enough for the DSP core
-  (`bcrypt userenv ws2_32 ntdll dbghelp psapi`) is enough for Wasmtime. If it
-  is not, the linker says which one is missing, and it is a one-line change;
-- whether a static Wasmtime links into the application at all on Windows and
-  macOS. A static Rust library also brings its own platform libraries -
-  threads, `dl`, `m` - and how much of that the application's link line
-  already carries is untested;
-- the Apple and 32-bit Windows library names, which are set by pattern from
-  the DSP core's names. The 64-bit MSVC name (`rustacity_ext.lib`) and the GNU
-  Windows name (`librustacity_ext.a`) have both now been produced.
-
-The cargo command itself was checked by hand here, for the GNU Windows triple,
+The cargo command was also checked by hand here, for the GNU Windows triple,
 with the same `--release --target <triple> --manifest-path rust/Cargo.toml
 -p rustacity-dsp -p rustacity-ext-host`: it produces both libraries in the
 `target/<triple>/release` directory the CMake block points at, and nothing
 else - in particular not `rustacity-ext-cli`.
 
-**Other platforms.** The engine's own tests have now run on Linux as well as
-this machine's GNU Windows toolchain (see section 3), and the MSVC build of the
-engine has been observed. macOS has not got as far as compiling anything yet -
-its job failed while generating the build files, for the reason described above
-- and arm64 has not been tried anywhere. Both of those triples are set by
-pattern rather than by measurement.
+What is still unverified is not the building of it but the running of it:
+
+- **no instance of the effect has ever been created inside the application.**
+  Nothing constructs an `EffectExtension` - it is deliberately in no menu, for
+  the reason below - so the effect has only ever run through the host's tests
+  and the CLI. How the framework treats a failed pass in a real session - the
+  message box, the discarded output - follows from `Effect::Process` and is
+  untested in place;
+- arm64 macOS and 32-bit Windows: their triples are set by pattern from the DSP
+  core's, no library name has been seen for either, and no build has been
+  attempted anywhere.
 
 **The effect is not reachable from a menu.** `EffectExtension` loads an
 extension and runs it; nothing constructs one yet. Registering a menu entry per
@@ -263,8 +267,8 @@ scripts/build-extensions.sh         builds the variants for wasm32-wasip1
 scripts/check_ext_abi.py            header against FFI, and the status numbers
 src/CMakeLists.txt                  two include paths, two static libraries,
                                     one cargo build, one driving target
-src/effects/Extension.h             the one new effect class (compiled by CI,
-                                    not linked yet - see section 4)
+src/effects/Extension.h             the one new effect class, compiled, linked
+                                    and packaged for all three platforms
 src/effects/Extension.cpp
 ```
 
