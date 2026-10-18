@@ -561,6 +561,43 @@ jobs:
         run: cargo fmt --all --check
 
   # =========================================================================
+  # MANAGER: the extensions directory, as a window and as a listing
+  #
+  # rust/ext-manager and rust/ext-manager-gui are ordinary members of the rust/
+  # workspace, so rust-test above already builds both - on Linux, which is a
+  # build of the window's egui/OpenGL stack in its own right - and runs their
+  # tests.  What is added here is the pair of gates the extensions job gives
+  # the engine: lint and format, scoped to these two crates, because rust/dsp
+  # has lints and formatting from before this work.
+  #
+  # The window is not opened here.  A runner has no display, and a virtual one
+  # would make this job depend on software rendering where what is being
+  # checked is a real driver.  What the window does to the directory is driven
+  # without a window by the tests in rust/ext-manager-gui/src/app.rs, and
+  # running the window itself against the built fixtures was done by hand.
+  # =========================================================================
+  manager:
+    name: Extension manager
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Clippy
+        working-directory: rust
+        run: >
+          cargo clippy
+          -p rustacity-ext-manager -p rustacity-ext-manager-gui
+          --all-targets -- -D warnings
+
+      - name: Formatting
+        working-directory: rust
+        run: >
+          cargo fmt
+          -p rustacity-ext-manager -p rustacity-ext-manager-gui
+          --check
+
+  # =========================================================================
   # CLI: the extension engine's command-line tool and the example extensions
   #
   # What someone can try without building the editor: one Linux binary (plain
@@ -628,10 +665,10 @@ jobs:
   # =========================================================================
   release:
     name: Publish Release
-    # Only run for tag pushes, after the build matrix, the Rust tests and the
-    # extension engine have succeeded
+    # Only run for tag pushes, after the build matrix, the Rust tests, the
+    # extension engine and the manager have succeeded
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [ build, rust-test, extensions, cli ]
+    needs: [ build, rust-test, extensions, manager, cli ]
     runs-on: ubuntu-latest
     # GITHUB_TOKEN only reads the workflow's artifacts here; the release
     # itself is published with RELEASE_TOKEN below.
