@@ -1,0 +1,27 @@
+Rustacity
+=========
+
+Rustacity is a fork of Audacity 2.4.1, and is distributed under the terms of the
+GNU General Public License, version 2 or any later version, as Audacity is.
+
+`LICENSE.txt` is upstream's licence file, unchanged: it holds the full GPL text
+and the Audacity team's copyright notice, which is kept as it was. This file
+exists so that the licence file can stay exactly that.
+
+Changes made for this fork are copyright (c) 2026 Sadik Pranto and are licensed
+under the same terms.
+
+Rustacity is an independent fork. It is not affiliated with, endorsed by or
+supported by the Audacity team; "Audacity", and the Audacity logo, are
+trademarks of their respective owners, and this project does not use them as its
+own identity.
+
+Third-party code
+----------------
+
+* The vendored libraries under `lib-src/` carry their own licences, all of them
+  GPL-compatible; `LICENSE.txt` says the same, and each directory under
+  `lib-src/` holds its own licence information.
+* The extension engine runs on Wasmtime, which is Apache-2.0/MIT.
+* The documentation, like upstream's, is under the Creative Commons
+  Attribution 3.0 licence that `LICENSE.txt` names.
