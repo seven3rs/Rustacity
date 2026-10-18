@@ -5,3 +5,9 @@
 # layout scripts/build-extensions.sh produces are both output.
 /extensions/target/
 /extensions/dist/
+
+# The manager's interface is a separate workspace for the same reason: it
+# builds for wasm32-unknown-unknown and is served to a browser rather than
+# linked into anything.  scripts/build-manager-ui.sh produces dist/.
+/ext-manager-ui/target/
+/ext-manager-ui/dist/

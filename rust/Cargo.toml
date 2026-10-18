@@ -7,8 +7,10 @@ members = ["dsp", "ext-api", "ext-host", "ext-cli", "ext-manager"]
 # The extensions themselves are WebAssembly modules, not parts of the host:
 # they build for wasm32-wasip1 with their own profile and are never linked
 # into the application, so they stand outside this workspace and are built
-# by scripts/build-extensions.sh.
-exclude = ["extensions/*"]
+# by scripts/build-extensions.sh.  The manager's interface is outside for
+# the same reason and a different target - wasm32-unknown-unknown - and is
+# built by scripts/build-manager-ui.sh.
+exclude = ["extensions/*", "ext-manager-ui"]
 resolver = "2"
 
 # rustacity-dsp is linked into the C++ application as a static library.
