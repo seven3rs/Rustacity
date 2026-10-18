@@ -258,12 +258,12 @@ static wxString HelpTextBuiltIn( const wxString & Key )
          << wxT(" [[https://forum.audacityteam.org/|Forum]] - for large knowledge base on using Audacity.")
          << wxT("</li></ul>")
 #else
-         << wxT("<center><h3>Audacity ")
+         << wxT("<center><h3>Rustacity ")
          << RUSTACITY_VERSION_STRING
          << wxT("</h3><h3>")
          << XO("How to get help")
          << wxT("</h3></center>")
-         << XO("These are our support methods:")
+         << XO("Rustacity is a fork of Audacity 2.4.1. The manual and the wiki below are upstream Audacity's; these are the ways to get help:")
          << wxT("<p><ul><li>")
          /* i18n-hint: Preserve '[[help:Quick_Help|' as it's the name of a link.*/
          << XO("[[help:Quick_Help|Quick Help]] - if not installed locally, [[https://manual.audacityteam.org/quick_help.html|view online]]")
@@ -273,10 +273,13 @@ static wxString HelpTextBuiltIn( const wxString & Key )
 " [[help:Main_Page|Manual]] - if not installed locally, [[https://manual.audacityteam.org/|view online]]")
          << wxT("</li><li>")
          << XO(
-" [[https://forum.audacityteam.org/|Forum]] - ask your question directly, online.")
+" [[https://forum.audacityteam.org/|Audacity Forum]] - upstream's forum, which is not our support desk.")
+         << wxT("</li><li>")
+         << XO(
+" [[https://github.com/prantosmss/Rustacity/issues|Rustacity issues]] - to report a problem with Rustacity itself.")
          << wxT("</li></ul></p><p>")
          << wxT("<b>")
-         << XO("More:</b> Visit our [[https://wiki.audacityteam.org/index.php|Wiki]] for tips, tricks, extra tutorials and effects plug-ins.")
+         << XO("More:</b> Visit the [[https://wiki.audacityteam.org/index.php|Audacity Wiki]] for tips, tricks, extra tutorials and effects plug-ins.")
          << wxT("</p>")
 #endif
    ;
