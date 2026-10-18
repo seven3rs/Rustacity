@@ -98,10 +98,13 @@ The commands, in order:
 cd rust
 cargo test --workspace          # 144 tests, 0 failed
 cargo build --release -p rustacity-ext-cli
-python3 scripts/check_dsp_abi.py     # header and exports agree
-python3 scripts/check_ext_abi.py     # ext header and FFI agree
+python scripts/check_dsp_abi.py      # header and exports agree
+python scripts/check_ext_abi.py      # ext header and FFI agree
 scripts/build-extensions.sh          # 12 variants for wasm32-wasip1
 ```
+
+(The interpreter is `python` here; `python3` on this machine is the Microsoft
+Store stub and does not run. The README names both.)
 
 The CLI was then run against a real WAV, and against the hostile fixtures, by
 hand; that transcript is what the README's demo section shows.
@@ -117,9 +120,10 @@ linking the Rust cores — and packages it. That job is green on the commit this
 audit names; the run is cited in [`EVIDENCE.md`](EVIDENCE.md).
 
 The consequence for the front page is deliberate: the **quick start is the CLI**,
-which was run on a clean checkout during the final pass, and the full
-application build points at the workflow, which is the only recipe that has ever
-produced a release.
+which was run end to end in a clean clone during the final pass — which is where
+the branch's one portability bug turned up, in `scripts/build-extensions.sh`
+(section 4) — and the full application build points at the workflow, which is the
+only recipe that has ever produced a release.
 
 ## 3. Evidence inventory
 
@@ -175,6 +179,7 @@ benchmark, and no performance claim is made anywhere in this branch.
 | the bug-report template asks for an **Audacity** version | `.github/ISSUE_TEMPLATE/bug_report.md` |
 | no `SECURITY.md`, so there is nowhere to say how to report a sandbox escape | new file |
 | no `examples/`, so the quick start had no input to run on | new directory |
+| `scripts/build-extensions.sh` **failed in a fresh Windows checkout** - a CRLF blank line in `variants.txt` read as a field holding a carriage return, so the script built the whole workspace and then reported a missing module. Found by running the quick start in a clean clone, which is the first thing the README tells a reader to run | `scripts/build-extensions.sh` |
 | no CI status badge, though the workflow passes | `README.md` |
 | topics on GitHub are thin and partly invented (`rustacean`, `rustaceans`) and miss `wasm`, `webassembly`, `dsp`, `sandbox`; the description is vague; there is no `gh` on this machine, so the commands are in the owner TODO | GitHub settings |
 | two merged-but-undeleted branches (`dsp/abi-hardening`, `dsp/phaser`) and a stale local `master` | refs; owner only, not deleted here |

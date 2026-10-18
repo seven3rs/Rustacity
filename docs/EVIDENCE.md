@@ -35,6 +35,21 @@ rust/target/release/rustacity-ext-cli rust/extensions/dist/gain-invert \
 python3 examples/check-output.py examples/sine-sweep.wav /tmp/gained.wav --gain-db 6
 ```
 
+Every command above was run on a **clean clone of this branch** before it was
+written down here, and the sample the checker is given was regenerated in that
+clone first — `git status` afterwards was empty, so the committed WAV is byte for
+byte what the generator produces. Two substitutions have to be named rather than
+hidden: the interpreter on this machine is `python`, because its `python3` is the
+Microsoft Store stub and does not run, and the host toolchain is
+`x86_64-pc-windows-gnu`, because this machine has no MSVC linker at all.
+
+That clean clone is also where the branch's one portability bug turned up:
+`scripts/build-extensions.sh` did not survive a checkout with CRLF endings, which
+is what Git for Windows produces by default, because the blank lines in
+`rust/extensions/variants.txt` then read as a field holding a carriage return.
+It is fixed in that script, and the fix was verified by running the whole quick
+start again in a second fresh clone.
+
 ## 1. The test suite
 
 `cd rust && cargo test --workspace` — **144 passed, 0 failed**:
