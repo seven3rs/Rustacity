@@ -114,41 +114,63 @@ or a caller who asked for something impossible, leaves the instance usable.
   CLI, against references worked out in the tests at 1e-6, at several channel
   counts and at block sizes of 1, 64, 4096 and 65536 frames.
 
+Those tests now run in CI on Linux too, on a platform other than the one this
+was written on: the `Rust Tests` job installs the `wasm32-wasip1` target and
+passes `cargo test --workspace`, which builds the WebAssembly fixtures the
+containment tests load, and the `Extensions` job builds every variant in
+`variants.txt`, checks the header against the FFI, and applies the lint and
+format gates to the new crates. Both jobs pass for the Rust half of the tree;
+the application's own build is a separate job, and section 4 says where it
+stands.
+
 No benchmark numbers are quoted anywhere in this work, because none were
 measured under conditions worth quoting.
 
 ## 4. What has not been built or tested
 
-**The C++ effect has never been compiled.** This machine has no wxWidgets, no
-MSVC and no CMake build tree, so `src/effects/Extension.cpp` and `.h` and the
-`src/CMakeLists.txt` change are written to the repository's conventions and
-unverified in every way a compiler verifies. Specifically unverified:
+**The C++ effect was written without a compiler. CI has now compiled it once.**
+That first compile reported six errors in two groups, and both are fixed:
+`Effect` keeps its block size privately, so `SetBlockSize` hands the smaller
+value to the base class rather than assigning it, and the instance is told
+`GetBlockSize()`; and `XO(...).Format(...)` is a `TranslatableString`, not a
+`wxString`, which is what `Fail` now takes. Nothing else was reported, so the
+class shape, the overrides and the calls into the C ABI type-check against this
+version of `Effect`.
 
-- that the class compiles against this version of `Effect` (it follows
-  `Invert.cpp` and `Reverse.cpp`, which is the closest thing to a check
-  available here);
-- the CMake pattern of one custom command with two outputs behind two custom
-  targets, and the claim that both static libraries end up in the app;
-- the library names for the MSVC and Apple triples, which are set by pattern
-  from the DSP core's names;
+The same build verified more of the glue than was possible here: the CMake
+custom command ran cargo for `x86_64-pc-windows-msvc`, and both
+`rustacity_dsp.lib` and `rustacity_ext.lib` were produced in the
+`target/<triple>/release` directory the link names - so the wiring, the MSVC
+library name and compiling Wasmtime with MSVC are observed rather than assumed.
+It also showed that the Visual Studio generator runs a custom command with two
+outputs once per output; both custom targets now depend on the same output, so
+the same work is asked for once.
+
+What remains unverified:
+
+- **the link.** That first build stopped at the compile error, before linking,
+  so the sandbox has not been linked into the application on any platform yet;
 - that the MSVC system library list that was enough for the DSP core
   (`bcrypt userenv ws2_32 ntdll dbghelp psapi`) is enough for Wasmtime. If it
   is not, the linker says which one is missing, and it is a one-line change;
 - whether a static Wasmtime links into the application at all on Windows and
-  macOS. This is the largest unknown in the whole change.
+  macOS. A static Rust library also brings its own platform libraries -
+  threads, `dl`, `m` - and how much of that the application's link line
+  already carries is untested;
+- the Apple and 32-bit Windows library names, which are set by pattern from
+  the DSP core's names. The 64-bit MSVC name (`rustacity_ext.lib`) and the GNU
+  Windows name (`librustacity_ext.a`) have both now been produced.
 
-What *was* checked about the build glue is the cargo command inside it: run by
-hand for the GNU Windows triple, with the same `--release --target <triple>
---manifest-path rust/Cargo.toml -p rustacity-dsp -p rustacity-ext-host`, it
-produces both `librustacity_dsp.a` and `librustacity_ext.a` in the
+The cargo command itself was checked by hand here, for the GNU Windows triple,
+with the same `--release --target <triple> --manifest-path rust/Cargo.toml
+-p rustacity-dsp -p rustacity-ext-host`: it produces both libraries in the
 `target/<triple>/release` directory the CMake block points at, and nothing
-else - in particular not `rustacity-ext-cli`. Everything around that one line
-is still CMake that has never run.
+else - in particular not `rustacity-ext-cli`.
 
-**Nothing about other platforms.** The extension engine has been exercised only
-through the GNU Windows toolchain here; the Linux CI job is new and unobserved.
-arm64, macOS and MSVC builds of the engine are unverified, and the CMake block
-sets a target triple for each of them by pattern rather than by measurement.
+**Other platforms.** The engine's own tests have now run on Linux as well as
+this machine's GNU Windows toolchain (see section 3), and the MSVC build of the
+engine has been observed; macOS and arm64 have not been exercised at all, and
+their target triples are set by pattern rather than by measurement.
 
 **The effect is not reachable from a menu.** `EffectExtension` loads an
 extension and runs it; nothing constructs one yet. Registering a menu entry per
