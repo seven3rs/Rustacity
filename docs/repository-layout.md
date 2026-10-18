@@ -20,23 +20,27 @@ and which parts are inherited and must not be touched.
 | `nyquist/` | the Nyquist language runtime resources and system plug-ins | yes |
 | `plug-ins/` | bundled Nyquist plug-ins | yes |
 | `presets/` | shipped preset data (`EQDefaultCurves.xml`) | yes |
-| `scripts/` | our tooling - `scripts/brand/` (brand asset generation) and `scripts/check_dsp_abi.py` (the ABI gate) - alongside inherited wiki and image utilities | partly |
+| `scripts/` | our tooling - `scripts/brand/`, the ABI gates `scripts/check_dsp_abi.py` and `scripts/check_ext_abi.py`, and `scripts/build-extensions.sh` - alongside inherited wiki and image utilities | partly |
 | `win/` | the Windows installers (`Inno_Setup_Wizard/` for the wizard, `wix/` for the MSI), the application resource script and the icon it embeds | yes for `rustacity.rc` and the icon; both installers are built in CI |
 | `mac/` | macOS bundle resources (`Resources/`), the bundle wrapper `Wrapper.c`, `Info.plist`, signing entitlements, and the local wxWidgets build helper | yes for `Wrapper.c` and `Resources/` |
 | `.github/` | CI - one workflow, `cmake_build.yml` | yes |
 | `docs/` | this documentation | no |
+| `examples/` | the generated sample and the two scripts the quick start uses, and what a run looks like | no |
 
-At the root, `CMakeLists.txt` is the build entry point. `README.md` is the
-front page, `LICENSE.txt` the GPL (with the upstream attribution intact),
-`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` and `PULL_REQUEST_TEMPLATE.md` the
-inherited GitHub meta-files.
+At the root, `CMakeLists.txt` is the build entry point. `README.md` is the front
+page; `LICENSE.txt` is upstream's GPL text, byte for byte, with the fork and its
+copyright in `NOTICE`; `SECURITY.md` says how to report a flaw privately; and
+`CONTRIBUTING.md`, `CODE_OF_CONDUCT.md` and `PULL_REQUEST_TEMPLATE.md` are the
+GitHub meta-files every contributor meets.
 
 ## What is ours
 
 - `src/`, and everything the Rust migration touches inside it.
 - `rust/`.
-- `scripts/brand/` and `scripts/check_dsp_abi.py`.
-- `docs/`, `README.md`, `.github/workflows/cmake_build.yml`.
+- `scripts/brand/`, `scripts/check_dsp_abi.py`, `scripts/check_ext_abi.py` and
+  `scripts/build-extensions.sh`.
+- `docs/`, `examples/`, `README.md`, `NOTICE`, `SECURITY.md`,
+  `.github/workflows/cmake_build.yml`.
 - The brand assets in `images/` and the icons and installer art in `win/` and
   `mac/Resources/`, all generated from `images/brand/` by
   `scripts/brand/build_brand_assets.py`.
