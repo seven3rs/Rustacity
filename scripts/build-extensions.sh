@@ -49,6 +49,14 @@ mkdir -p "$dist"
 
 built=0
 while read -r name dir feature module; do
+    # A checkout with CRLF line endings - Git for Windows is one by default -
+    # leaves a carriage return on the last field of every line, and turns a
+    # blank line into a single field holding nothing but that character.  Left
+    # in, that blank line falls through the case below, points the crate at the
+    # extensions workspace and the module at the release directory, and the
+    # build fails at the bottom of the loop having built the wrong thing.
+    name=${name%$'\r'} dir=${dir%$'\r'}
+    feature=${feature%$'\r'} module=${module%$'\r'}
     case "$name" in ''|'#'*) continue ;; esac
     if [ -n "$wanted" ] && [ "$wanted" != "$name" ]; then
         continue
