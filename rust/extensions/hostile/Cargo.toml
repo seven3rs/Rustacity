@@ -1,0 +1,27 @@
+[package]
+name = "hostile"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+description = "Rustacity test extension that misbehaves on purpose, so the sandbox can be proved"
+publish = false
+
+# One hostile behaviour per feature, so each can be built and tested on its
+# own.  With no feature the module passes audio through untouched, which is
+# what makes it a fair control: the same crate is well behaved when it wants
+# to be.  scripts/build-extensions.sh builds every variant.
+[features]
+default = []
+loop = []      # never returns from rx_process
+memory = []    # allocates until the store's memory limit stops it
+trap = []      # divides by zero
+wasi = []      # tries files, environment and network, then reports what it got
+pointers = []  # rx_alloc hands back a pointer outside the module's memory
+code = []      # rx_process returns a result code the host does not know
+abi = []       # rx_api_version claims version 2
+import = []    # imports a host function that does not exist
+log = []       # floods the log
+
+[lib]
+name = "hostile"
+crate-type = ["cdylib"]

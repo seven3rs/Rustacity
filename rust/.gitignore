@@ -1,1 +1,7 @@
 /target/
+
+# The extensions are their own workspace: they build for wasm32-wasip1 and are
+# never linked into the application.  Its build directory and the installable
+# layout scripts/build-extensions.sh produces are both output.
+/extensions/target/
+/extensions/dist/

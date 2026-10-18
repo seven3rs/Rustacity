@@ -1,0 +1,18 @@
+api_version = 1
+id = "com.example.template"
+name = "Template"
+version = "0.1.0"
+description = "A starter extension; rename me"
+author = "Your Name"
+license = "GPL-2.0-or-later"
+
+capabilities = ["audio.read", "audio.write"]
+
+[[parameters]]
+id = "amount"
+name = "Amount"
+kind = "float"
+min = 0.0
+max = 1.0
+default = 0.0
+description = "TODO: say what this does"

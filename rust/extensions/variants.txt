@@ -1,0 +1,22 @@
+# The extensions that scripts/build-extensions.sh builds, and that the host's
+# integration tests load.
+#
+#   <directory in dist/>  <crate under rust/extensions/>  <cargo feature>  <module>
+#
+# One module and one manifest per line.  The manifest comes from the crate
+# directory; the module is the .wasm cargo builds for wasm32-wasip1.  Both
+# consumers - the shell script and the test fixture builder in
+# rust/ext-host/tests - read this file, so a new variant is added in one place.
+
+gain-invert      gain-invert  -        gain_invert.wasm
+template         template     -        rustacity_template.wasm
+hostile-benign   hostile      -        hostile.wasm
+hostile-loop     hostile      loop     hostile.wasm
+hostile-memory   hostile      memory   hostile.wasm
+hostile-trap     hostile      trap     hostile.wasm
+hostile-wasi     hostile      wasi     hostile.wasm
+hostile-pointers hostile      pointers hostile.wasm
+hostile-code     hostile      code     hostile.wasm
+hostile-abi      hostile      abi      hostile.wasm
+hostile-import   hostile      import   hostile.wasm
+hostile-log      hostile      log      hostile.wasm

@@ -1,0 +1,24 @@
+# Workspace for Rustacity's extensions.
+#
+# Extensions are WebAssembly modules, not parts of the host: this is a
+# separate workspace so that building the application never builds them,
+# and so that a module can be built for wasm32-wasip1 with a profile of
+# its own.  scripts/build-extensions.sh builds every member and lays the
+# results out as complete extension directories under dist/.
+#
+# Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+
+[workspace]
+members = ["gain-invert", "hostile", "template"]
+resolver = "2"
+
+# Extensions run inside the sandbox, where a panic has nowhere to unwind
+# to: aborting is what the host expects, and it turns a bug in an
+# extension into a Trap that the host survives.  The size settings are
+# for the download, not for speed - these modules are not on the clock.
+[profile.release]
+panic = "abort"
+opt-level = "s"
+lto = true
+codegen-units = 1
+strip = true

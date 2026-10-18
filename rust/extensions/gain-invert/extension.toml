@@ -1,0 +1,26 @@
+api_version = 1
+id = "com.rustacity.gain-invert"
+name = "Gain / Invert"
+version = "0.1.0"
+description = "Trim the gain in decibels and optionally flip the polarity"
+author = "Sadik Pranto"
+license = "GPL-2.0-or-later"
+
+capabilities = ["audio.read", "audio.write"]
+
+[[parameters]]
+id = "gain_db"
+name = "Gain (dB)"
+kind = "float"
+min = -60.0
+max = 24.0
+default = 0.0
+unit = "dB"
+description = "0 dB leaves the level alone"
+
+[[parameters]]
+id = "invert"
+name = "Invert polarity"
+kind = "bool"
+default = false
+description = "Multiply every sample by -1"

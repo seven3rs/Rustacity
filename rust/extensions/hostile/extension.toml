@@ -1,0 +1,9 @@
+api_version = 1
+id = "com.rustacity.hostile"
+name = "Hostile (test fixture)"
+version = "0.1.0"
+description = "Misbehaves on purpose. Built by scripts/build-extensions.sh, used only by the host's tests"
+author = "Sadik Pranto"
+license = "GPL-2.0-or-later"
+
+capabilities = ["audio.read", "audio.write"]

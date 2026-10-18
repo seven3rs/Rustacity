@@ -1,0 +1,11 @@
+[package]
+name = "gain-invert"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+description = "Rustacity test extension: a gain trim with an optional polarity flip"
+publish = false
+
+[lib]
+name = "gain_invert"
+crate-type = ["cdylib"]

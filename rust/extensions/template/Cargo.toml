@@ -1,0 +1,11 @@
+[package]
+name = "rustacity-template"
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+description = "Starter extension for Rustacity: copy this directory to begin"
+publish = false
+
+[lib]
+name = "rustacity_template"
+crate-type = ["cdylib"]
