@@ -128,10 +128,11 @@ flip are exact; +6 dB is one float multiply, and 6.4e-08 is its rounding. The
 parameters were set before the first block, which the ABI says are taken
 exactly rather than slewed to.
 
-The two hostile runs quoted on the front page were made here as well:
+The two hostile runs the front page describes were made here as well:
 `hostile-loop` exits 1 with "the extension was still working after 5000 ms"
 after **5.54 s** of wall clock, and `hostile-wasi` logs that it obtained
-**zero** bytes from everything it tried.
+**zero** bytes from everything it tried — that log, in full, is in
+[`../examples/README.md`](../examples/README.md).
 
 ## 5. The application
 

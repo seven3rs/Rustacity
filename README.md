@@ -81,27 +81,15 @@ $ echo $?
 ```
 
 An extension that goes looking for files, environment, arguments and sockets
-finds nothing, and says so in its own log. This is one call of that fixture with
-some of its attempts left out; it names every path, argument and socket it cannot
-reach, on every call, and the socket error's wording is the platform's:
-
-```
-$ rust/target/release/rustacity-ext-cli rust/extensions/dist/hostile-wasi \
-      examples/sine-sweep.wav /tmp/wasi.wav --verbose
-[info] /etc/passwd: No such file or directory (os error 44)
-[info] /etc/shadow: No such file or directory (os error 44)
-[...]
-[info] 0 arguments
-[info] connect: operation not supported on this platform
-[warn] obtained 0 bytes it should not have
-44100 frame(s), 11 call(s) -> /tmp/wasi.wav ('Hostile (test fixture)' 0.1.0)
-```
+finds nothing, and its own log says so: `No such file or directory` for every path
+it names, `0 arguments`, a refused `connect`, `obtained 0 bytes it should not
+have`. That fixture's log, in full, is in
+[`examples/README.md`](examples/README.md).
 
 A parameter outside its range is refused rather than clamped — `invalid argument:
 1000 is outside the range of 'gain_db' (-60..24)` — and the extension never sees
-the call. The full table of ten misbehaviours is in
-[`docs/extensions/SANDBOX.md`](docs/extensions/SANDBOX.md); the same runs, with
-their output and timings, are in [`examples/README.md`](examples/README.md).
+the call. The table of ten misbehaviours, and what happened to each, is
+[`docs/extensions/SANDBOX.md`](docs/extensions/SANDBOX.md) §2.
 
 ## Quick start
 
