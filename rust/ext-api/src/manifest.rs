@@ -151,10 +151,9 @@ impl Manifest {
     /// Reads and validates `extension.toml` from an extension directory.
     pub fn load(dir: &Path) -> Result<Self, ExtError> {
         let path = Self::path_in(dir);
-        let text = std::fs::read_to_string(&path).map_err(|error| {
-            ExtError::Io(format!("cannot read {}: {error}", path.display()))
-        })?;
-        Self::from_str(&text).map_err(|error| match error {
+        let text = std::fs::read_to_string(&path)
+            .map_err(|error| ExtError::Io(format!("cannot read {}: {error}", path.display())))?;
+        Self::parse(&text).map_err(|error| match error {
             // Point at the file, not just at the rule that was broken.
             ExtError::ManifestInvalid(message) => {
                 ExtError::ManifestInvalid(format!("{}: {message}", path.display()))
@@ -164,9 +163,12 @@ impl Manifest {
     }
 
     /// Validates manifest text.
-    pub fn from_str(text: &str) -> Result<Self, ExtError> {
-        let raw: RawManifest = toml::from_str(text)
-            .map_err(|error| ExtError::ManifestInvalid(format!("{error}")))?;
+    ///
+    /// `parse` rather than `from_str`: it is a TOML parser and a set of rules,
+    /// not the `FromStr` trait, and the error is the API's own.
+    pub fn parse(text: &str) -> Result<Self, ExtError> {
+        let raw: RawManifest =
+            toml::from_str(text).map_err(|error| ExtError::ManifestInvalid(format!("{error}")))?;
         Self::from_raw(raw)
     }
 
@@ -207,10 +209,7 @@ impl Manifest {
 
         let mut parameters: Vec<Parameter> = Vec::with_capacity(raw.parameters.len());
         for (index, raw_parameter) in raw.parameters.iter().enumerate() {
-            if parameters
-                .iter()
-                .any(|known| known.id == raw_parameter.id)
-            {
+            if parameters.iter().any(|known| known.id == raw_parameter.id) {
                 return Err(ExtError::ManifestInvalid(format!(
                     "duplicate parameter id '{}'",
                     raw_parameter.id
@@ -301,7 +300,11 @@ impl RawParameter {
                         )))
                     }
                 };
-                if !(min < max) {
+                // A range that is not ordered is not a range. Comparing this
+                // way also refuses a min or max of NaN, which `min >= max`
+                // would let through.
+                let ordered = matches!(min.partial_cmp(&max), Some(std::cmp::Ordering::Less));
+                if !ordered {
                     return Err(ExtError::ManifestInvalid(format!(
                         "parameter '{}' has min {min} and max {max}; min must be smaller",
                         self.id
@@ -347,10 +350,7 @@ impl RawParameter {
                     )));
                 }
                 for (position, choice) in choices.iter().enumerate() {
-                    if choices[..position]
-                        .iter()
-                        .any(|earlier| earlier == choice)
-                    {
+                    if choices[..position].iter().any(|earlier| earlier == choice) {
                         return Err(ExtError::ManifestInvalid(format!(
                             "parameter '{}' lists the choice '{choice}' twice",
                             self.id
@@ -453,7 +453,10 @@ fn default_from_value(
 
 fn validate_id(id: &str) -> Result<(), ExtError> {
     let allowed = |character: char| {
-        character.is_ascii_alphanumeric() || character == '.' || character == '-' || character == '_'
+        character.is_ascii_alphanumeric()
+            || character == '.'
+            || character == '-'
+            || character == '_'
     };
     if id.is_empty() || !id.contains('.') || !id.chars().all(allowed) {
         return Err(ExtError::ManifestInvalid(format!(
@@ -470,10 +473,7 @@ fn validate_id(id: &str) -> Result<(), ExtError> {
 
 fn validate_version(version: &str) -> Result<(), ExtError> {
     // The numeric core has to be there; a pre-release or build suffix may follow.
-    let core = version
-        .split(['-', '+'])
-        .next()
-        .unwrap_or_default();
+    let core = version.split(['-', '+']).next().unwrap_or_default();
     let parts: Vec<&str> = core.split('.').collect();
     let numeric = !parts.is_empty()
         && parts.len() <= 4
@@ -506,7 +506,10 @@ fn validate_capabilities(capabilities: &[String]) -> Result<(), ExtError> {
         }
     }
     for (position, capability) in capabilities.iter().enumerate() {
-        if capabilities[..position].iter().any(|earlier| earlier == capability) {
+        if capabilities[..position]
+            .iter()
+            .any(|earlier| earlier == capability)
+        {
             return Err(ExtError::ManifestInvalid(format!(
                 "capability '{capability}' is listed twice"
             )));
@@ -543,7 +546,7 @@ default = false
 
     #[test]
     fn a_valid_manifest_parses_with_parameters_in_order() {
-        let manifest = Manifest::from_str(MINIMAL).expect("valid");
+        let manifest = Manifest::parse(MINIMAL).expect("valid");
         assert_eq!(manifest.api_version, 1);
         assert_eq!(manifest.id, "com.example.gain-invert");
         assert_eq!(manifest.parameters.len(), 2);
@@ -558,7 +561,7 @@ default = false
     #[test]
     fn a_bool_default_of_true_becomes_one() {
         let text = MINIMAL.replace("default = false", "default = true");
-        let manifest = Manifest::from_str(&text).expect("valid");
+        let manifest = Manifest::parse(&text).expect("valid");
         assert_eq!(manifest.parameters[1].default, 1.0);
     }
 
@@ -568,7 +571,7 @@ default = false
             "{MINIMAL}\n[[parameters]]\nid = \"mode\"\nname = \"Mode\"\nkind = \"choice\"\n\
              choices = [\"Add\", \"Replace\"]\ndefault = \"Replace\"\n"
         );
-        let manifest = Manifest::from_str(&text).expect("valid");
+        let manifest = Manifest::parse(&text).expect("valid");
         assert_eq!(manifest.parameters[2].default, 1.0);
     }
 
@@ -581,7 +584,7 @@ default = false
 
     #[test]
     fn values_are_parsed_against_their_kind() {
-        let manifest = Manifest::from_str(MINIMAL).expect("valid");
+        let manifest = Manifest::parse(MINIMAL).expect("valid");
         let gain = manifest.parameter("gain_db").expect("gain_db");
         assert_eq!(gain.parse_value("-6.0").expect("number"), -6.0);
         assert!(matches!(

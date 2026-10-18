@@ -41,12 +41,12 @@ default = false
 }
 
 fn rejection(text: &str) -> ExtError {
-    Manifest::from_str(text).expect_err("should be rejected")
+    Manifest::parse(text).expect_err("should be rejected")
 }
 
 #[test]
 fn the_base_manifest_is_accepted() {
-    let manifest = Manifest::from_str(&base()).expect("valid");
+    let manifest = Manifest::parse(&base()).expect("valid");
     assert_eq!(manifest.api_version, 1);
     assert_eq!(manifest.id, "com.example.gain-invert");
     assert_eq!(manifest.name, "Gain / Invert");
@@ -56,19 +56,21 @@ fn the_base_manifest_is_accepted() {
     assert_eq!(manifest.capabilities, ["audio.read", "audio.write"]);
     assert!(manifest.can_process_audio());
     assert_eq!(manifest.parameters.len(), 2);
-    assert_eq!(manifest.parameters[0].kind, ParameterKind::Float { min: -60.0, max: 24.0 });
+    assert_eq!(
+        manifest.parameters[0].kind,
+        ParameterKind::Float {
+            min: -60.0,
+            max: 24.0
+        }
+    );
     assert_eq!(manifest.parameters[1].kind, ParameterKind::Bool);
     assert_eq!(manifest.parameters[0].unit.as_deref(), Some("dB"));
 }
 
 #[test]
 fn parameter_order_is_the_order_they_appear_in() {
-    let swapped = base()
-        .replace("[[parameters]]\nid = \"gain_db\"", "[[parameters]]\nid = \"invert_x\"")
-        .replace("[[parameters]]\nid = \"invert\"", "[[parameters]]\nid = \"gain_db\"");
-    // Put the bool first, on purpose.
-    let text = format!(
-        r#"
+    // The bool first, on purpose: the order is the manifest's, not the kind's.
+    let text = r#"
 api_version = 1
 id = "com.example.order"
 name = "Order"
@@ -88,15 +90,13 @@ kind = "float"
 min = -60.0
 max = 24.0
 default = 0.0
-"#
-    );
-    let manifest = Manifest::from_str(&text).expect("valid");
+"#;
+    let manifest = Manifest::parse(text).expect("valid");
     assert_eq!(manifest.parameter("invert").expect("invert").index, 0);
     assert_eq!(manifest.parameter("gain_db").expect("gain_db").index, 1);
     // and the order is the vector's, which is what rx_set_param indexes.
     assert_eq!(manifest.parameters[0].id, "invert");
     assert_eq!(manifest.parameters[1].id, "gain_db");
-    let _ = swapped;
 }
 
 #[test]
@@ -131,10 +131,9 @@ fn a_version_must_be_semantic() {
     assert!(error.to_string().contains("semantic version"), "{error}");
 
     // A pre-release and a build suffix are fine.
-    let manifest = Manifest::from_str(&base().replace(
-        "version = \"0.1.0\"",
-        "version = \"1.2.3-beta.1+build.5\"",
-    ))
+    let manifest = Manifest::parse(
+        &base().replace("version = \"0.1.0\"", "version = \"1.2.3-beta.1+build.5\""),
+    )
     .expect("valid");
     assert_eq!(manifest.version, "1.2.3-beta.1+build.5");
 }
@@ -146,7 +145,12 @@ fn an_unknown_capability_is_denied_by_name() {
         "capabilities = [\"audio.read\", \"audio.write\", \"fs.read\"]",
     ));
     assert!(matches!(error, ExtError::CapabilityDenied(_)), "{error:?}");
-    assert!(error.to_string().contains("'fs.read' is not a known capability"), "{error}");
+    assert!(
+        error
+            .to_string()
+            .contains("'fs.read' is not a known capability"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -157,7 +161,10 @@ fn a_reserved_capability_says_it_is_reserved() {
     ));
     assert!(matches!(error, ExtError::CapabilityDenied(_)), "{error:?}");
     assert!(error.to_string().contains("reserved"), "{error}");
-    assert!(error.to_string().contains("not supported in API version 1"), "{error}");
+    assert!(
+        error.to_string().contains("not supported in API version 1"),
+        "{error}"
+    );
 
     let error = rejection(&base().replace(
         "capabilities = [\"audio.read\", \"audio.write\"]",
@@ -173,19 +180,30 @@ fn a_repeated_parameter_id_is_rejected() {
         base()
     );
     let error = rejection(&text);
-    assert!(error.to_string().contains("duplicate parameter id 'gain_db'"), "{error}");
+    assert!(
+        error
+            .to_string()
+            .contains("duplicate parameter id 'gain_db'"),
+        "{error}"
+    );
 }
 
 #[test]
 fn an_unknown_parameter_kind_is_rejected() {
     let error = rejection(&base().replace("kind = \"bool\"", "kind = \"enum\""));
     assert!(error.to_string().contains("unknown kind 'enum'"), "{error}");
-    assert!(error.to_string().contains("float, bool and choice"), "{error}");
+    assert!(
+        error.to_string().contains("float, bool and choice"),
+        "{error}"
+    );
 }
 
 #[test]
 fn a_float_needs_min_and_max() {
-    let error = rejection(&base().replace("min = -60.0\nmax = 24.0\ndefault = 0.0\n", "default = 0.0\n"));
+    let error = rejection(&base().replace(
+        "min = -60.0\nmax = 24.0\ndefault = 0.0\n",
+        "default = 0.0\n",
+    ));
     assert!(error.to_string().contains("needs min and max"), "{error}");
 
     let error = rejection(&base().replace("min = -60.0", "min = 30.0"));
@@ -195,14 +213,23 @@ fn a_float_needs_min_and_max() {
 #[test]
 fn a_default_outside_the_range_is_rejected_with_the_numbers() {
     let error = rejection(&base().replace("default = 0.0", "default = 48.0"));
-    assert!(error.to_string().contains("default for 'gain_db' (48)"), "{error}");
+    assert!(
+        error.to_string().contains("default for 'gain_db' (48)"),
+        "{error}"
+    );
     assert!(error.to_string().contains("(-60..24)"), "{error}");
 }
 
 #[test]
 fn a_bool_default_must_be_a_bool() {
-    let error = rejection(&base().replace("kind = \"bool\"\ndefault = false", "kind = \"bool\"\ndefault = 1.0"));
-    assert!(error.to_string().contains("must be true or false"), "{error}");
+    let error = rejection(&base().replace(
+        "kind = \"bool\"\ndefault = false",
+        "kind = \"bool\"\ndefault = 1.0",
+    ));
+    assert!(
+        error.to_string().contains("must be true or false"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -211,7 +238,10 @@ fn a_choice_needs_a_non_empty_list_and_a_real_default() {
         "kind = \"bool\"\ndefault = false",
         "kind = \"choice\"\ndefault = 0",
     ));
-    assert!(error.to_string().contains("needs a non-empty choices list"), "{error}");
+    assert!(
+        error.to_string().contains("needs a non-empty choices list"),
+        "{error}"
+    );
 
     let error = rejection(&base().replace(
         "kind = \"bool\"\ndefault = false",
@@ -223,13 +253,19 @@ fn a_choice_needs_a_non_empty_list_and_a_real_default() {
         "kind = \"bool\"\ndefault = false",
         "kind = \"choice\"\nchoices = [\"Add\", \"Replace\"]\ndefault = \"Mix\"",
     ));
-    assert!(error.to_string().contains("not one of: Add, Replace"), "{error}");
+    assert!(
+        error.to_string().contains("not one of: Add, Replace"),
+        "{error}"
+    );
 
     let error = rejection(&base().replace(
         "kind = \"bool\"\ndefault = false",
         "kind = \"choice\"\nchoices = [\"Add\", \"Add\"]\ndefault = 0",
     ));
-    assert!(error.to_string().contains("lists the choice 'Add' twice"), "{error}");
+    assert!(
+        error.to_string().contains("lists the choice 'Add' twice"),
+        "{error}"
+    );
 }
 
 #[test]
@@ -243,7 +279,8 @@ fn unknown_fields_are_rejected_so_a_typo_cannot_go_unnoticed() {
     let error = rejection(&base().replace("capabilities = ", "capabilites = "));
     assert!(error.to_string().contains("capabilites"), "{error}");
 
-    let error = rejection(&base().replace("name = \"Invert polarity\"", "lable = \"Invert polarity\""));
+    let error =
+        rejection(&base().replace("name = \"Invert polarity\"", "lable = \"Invert polarity\""));
     assert!(error.to_string().contains("lable"), "{error}");
 }
 
@@ -271,15 +308,18 @@ fn a_missing_directory_is_reported_as_io_and_names_the_file() {
 
 #[test]
 fn a_manifest_that_cannot_process_audio_does_not_claim_it() {
-    let text = base().replace("capabilities = [\"audio.read\", \"audio.write\"]", "capabilities = []");
-    let manifest = Manifest::from_str(&text).expect("valid");
+    let text = base().replace(
+        "capabilities = [\"audio.read\", \"audio.write\"]",
+        "capabilities = []",
+    );
+    let manifest = Manifest::parse(&text).expect("valid");
     assert!(!manifest.can_process_audio());
 
     let text = base().replace(
         "capabilities = [\"audio.read\", \"audio.write\"]",
         "capabilities = [\"audio.read\"]",
     );
-    let manifest = Manifest::from_str(&text).expect("valid");
+    let manifest = Manifest::parse(&text).expect("valid");
     assert!(!manifest.can_process_audio());
 }
 
