@@ -245,8 +245,7 @@ which are properties of the machine rather than of the repository:
   installed for the MSVC toolchain, so `cargo fmt` was run with that one).
 
 On Windows with the GNU toolchain, `wasmtime` needs a MinGW linker on `PATH`
-for `wasmtime-internal-fiber`; that is what the `F:\Scoop\apps\mingw` prefix in
-the build commands was for. None of this is recorded in the repository, and
+for `wasmtime-internal-fiber`. None of this is recorded in the repository, and
 none of it is needed for the MSVC build CI uses.
 
 ## 7. Files touched outside `rust/`

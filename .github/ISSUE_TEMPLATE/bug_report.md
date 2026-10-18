@@ -1,29 +1,26 @@
 ---
 name: Bug report
-about: Create a report to help us improve
-
+about: Something is not working
 ---
 
-**Describe the bug**
-A clear and concise description of what the bug is.
+**What happened**
+A clear description of the problem.
 
-**To Reproduce**
-Steps to reproduce the behavior:
-1. Go to '...'
-2. Click on '....'
-3. Scroll down to '....'
-4. See error
+**Steps to reproduce**
+1.
+2.
+3.
 
-**Expected behavior**
-A clear and concise description of what you expected to happen.
+**What you expected instead**
 
-**Screenshots**
-If applicable, add screenshots to help explain your problem.
+**Version and platform**
+ - Rustacity version, from *Help > About* (if you built it yourself, the commit)
+ - Platform (for example Windows 11 x64, Ubuntu 24.04, macOS 15 Intel)
+ - Which part: the editor, the Rust DSP core, or the extension engine
 
-**Additional information (please complete the following information):**
- - OS: [e.g. Mac High Sierra, Ubuntu 18.04, Windows 10]
- - Version [e.g. Audacity 2.5.1]
- - (if relevant) Sound Device [e.g. Windows WASAPI, USB Sound card]
+**Anything else**
+Screenshots, a minimal project file, or a short recording. For an extension
+problem, say which extension, and include its `extension.toml`.
 
-**Additional context**
-Add any other context about the problem here.
+If this is a security problem, please do not open an issue: see
+[SECURITY.md](../SECURITY.md).
