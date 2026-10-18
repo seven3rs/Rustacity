@@ -142,9 +142,15 @@ custom command ran cargo for `x86_64-pc-windows-msvc`, and both
 `rustacity_dsp.lib` and `rustacity_ext.lib` were produced in the
 `target/<triple>/release` directory the link names - so the wiring, the MSVC
 library name and compiling Wasmtime with MSVC are observed rather than assumed.
-It also showed that the Visual Studio generator runs a custom command with two
-outputs once per output; both custom targets now depend on the same output, so
-the same work is asked for once.
+
+It also found two things about the CMake around it, both since fixed. A custom
+command with two outputs is two rules, and two cargo runs, to the Visual Studio
+generator; and the Xcode generator refuses a custom command attached to more
+than one target, so the macOS job never reached a compiler at all - it failed
+while generating the build files, with CMake saying so plainly. The sandbox's
+library is now a byproduct of the command rather than a second output, and one
+custom target drives it, which is the arrangement CMake's own documentation
+prescribes for a command that more than one target needs.
 
 What remains unverified:
 
@@ -169,8 +175,10 @@ else - in particular not `rustacity-ext-cli`.
 
 **Other platforms.** The engine's own tests have now run on Linux as well as
 this machine's GNU Windows toolchain (see section 3), and the MSVC build of the
-engine has been observed; macOS and arm64 have not been exercised at all, and
-their target triples are set by pattern rather than by measurement.
+engine has been observed. macOS has not got as far as compiling anything yet -
+its job failed while generating the build files, for the reason described above
+- and arm64 has not been tried anywhere. Both of those triples are set by
+pattern rather than by measurement.
 
 **The effect is not reachable from a menu.** `EffectExtension` loads an
 extension and runs it; nothing constructs one yet. Registering a menu entry per
