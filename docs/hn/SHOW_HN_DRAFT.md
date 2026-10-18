@@ -35,7 +35,7 @@ Not posted. This is a draft for the maintainer to edit, date, and post.
 > (`cargo build --release -p rustacity-ext-cli`, point it at a WAV, pass
 > parameters).
 >
-> 144 tests pass in the Rust workspace, and the quick start is a short
+> 168 tests pass in the Rust workspace, and the quick start is a short
 > sequence of commands that needs no wxWidgets and no editor build. Two things I
 > want to be plain about: the sandbox is containment inside the editor's process,
 > not an operating-system boundary — a bug in Wasmtime or in my glue is a bug in

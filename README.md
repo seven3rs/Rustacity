@@ -47,7 +47,13 @@ the built-in effects load exactly as before.
   deliberate misbehaviours ([`docs/extensions/SANDBOX.md`](docs/extensions/SANDBOX.md) §2).
 - **A reference extension**, `gain-invert`, checked end to end against
   arithmetic worked out outside the repository.
-- **144 tests** in `rust/`, run by `cargo test --workspace` and by CI on every
+- **The extension manager**, `rustacity-ext-manager` with a window in
+  `rustacity-ext-manager-gui`: it lists `<user data directory>/Extensions`, turns
+  one on or off by moving it into that directory's `disabled/`, and asks the
+  extension host — the one the editor links — whether an extension loads and runs.
+  The editor does not read that directory yet
+  ([`docs/extensions/MANAGER.md`](docs/extensions/MANAGER.md)).
+- **168 tests** in `rust/`, run by `cargo test --workspace` and by CI on every
   push (see [`docs/EVIDENCE.md`](docs/EVIDENCE.md)).
 
 **In progress**

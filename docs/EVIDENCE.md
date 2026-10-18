@@ -10,7 +10,7 @@ conditions worth quoting.
 
 ```sh
 cd rust
-cargo test --workspace              # 144 tests
+cargo test --workspace              # 168 tests
 cd ..
 python3 scripts/check_dsp_abi.py    # the DSP header against the exports
 python3 scripts/check_ext_abi.py    # the extension header against the FFI
@@ -52,7 +52,7 @@ start again in a second fresh clone.
 
 ## 1. The test suite
 
-`cd rust && cargo test --workspace` — **144 passed, 0 failed**:
+`cd rust && cargo test --workspace` — **168 passed, 0 failed**:
 
 | suite | tests |
 | --- | --- |
@@ -61,6 +61,8 @@ start again in a second fresh clone.
 | `rustacity-ext-api` (unit + `manifest`) | 26 |
 | `rustacity-ext-host` (unit, `abi_and_manifest`, `block_sizes`, `gain_invert`, `hostile`) | 35 |
 | `rustacity-ext-cli` (`wav_round_trip`) | 7 |
+| `rustacity-ext-manager` (unit, and the listing in `main.rs`) | 21 |
+| `rustacity-ext-manager-gui` (the window's `app` tests, driven without a window) | 3 |
 
 `rust/extensions/` is a separate workspace and is not covered by that command;
 its crates are held to the lint and format gates above, and the host's tests

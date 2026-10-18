@@ -194,8 +194,13 @@ extension and runs it; nothing constructs one yet. Registering a menu entry per
 installed extension means discovering what is installed - the way the LADSPA,
 LV2 and Nyquist modules discover what they find - and that needs two
 user-visible decisions rather than code: where extensions are installed, and how
-a user turns one on and off. `EffectExtension::Load` is written to be the half a
-discovery module would call.
+a user turns one on and off. Those two decisions are now made, and made outside
+the editor: `rust/ext-manager` and its window manage
+`<user data directory>/Extensions`, where a directory is installed and the same
+directory under `disabled/` is turned off ([MANAGER.md](MANAGER.md)). Nothing in
+`src/` reads either directory yet, and no menu entry is registered by any of
+this. `EffectExtension::Load` is written to be the half a discovery module would
+call.
 
 **Parameters are not exposed in the editor.** The effect runs the extension at
 the defaults its manifest declares. The host's C ABI already describes

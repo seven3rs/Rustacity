@@ -208,8 +208,13 @@ If the output is silence, check that `rx_init` returned 0 and that `rx_process`
 is using `frames` rather than `max_block_frames`; if it is a rattle, check the
 `c * frames + i` indexing.
 
-Where the editor installs extensions from, and how it lets a user turn one on
-and off, is part of the editor-side integration and is not settled here yet.
+Where an extension is installed, and how a user turns one on and off, is settled
+for the manager and not yet for the editor: see [MANAGER.md](MANAGER.md). The
+manager reads `<user data directory>/Extensions`, where a directory is installed
+and the same directory under `disabled/` is turned off. Nothing in `src/` reads
+that directory yet, so copying an extension there does not make it appear in the
+editor - that half is still to come
+([INTEGRATION_NOTES.md](INTEGRATION_NOTES.md) section 4).
 
 ## 7. Testing it
 

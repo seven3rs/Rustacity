@@ -61,7 +61,7 @@ What is **not** built is everything on the editor side of it:
   in the editor (`docs/extensions/SANDBOX.md` §3).
 
 **The test suite, run here and passing.** `cd rust && cargo test --workspace`
-exits 0 with **144 tests passed, 0 failed**:
+exits 0 with **168 tests passed, 0 failed**:
 
 | suite | tests |
 | --- | --- |
@@ -70,6 +70,8 @@ exits 0 with **144 tests passed, 0 failed**:
 | `rustacity-ext-api` (unit + `manifest`) | 26 |
 | `rustacity-ext-host` (unit, `abi_and_manifest`, `block_sizes`, `gain_invert`, `hostile`) | 35 |
 | `rustacity-ext-cli` (`wav_round_trip`) | 7 |
+| `rustacity-ext-manager` (unit, and the listing in `main.rs`) | 21 |
+| `rustacity-ext-manager-gui` (the window's `app` tests, driven without a window) | 3 |
 
 `rust/extensions/` is a separate workspace and is **not** part of that run: the
 extensions are checked by the `Extensions` CI job (they build, lint and format
@@ -96,7 +98,7 @@ The commands, in order:
 
 ```sh
 cd rust
-cargo test --workspace          # 144 tests, 0 failed
+cargo test --workspace          # 168 tests, 0 failed
 cargo build --release -p rustacity-ext-cli
 python scripts/check_dsp_abi.py      # header and exports agree
 python scripts/check_ext_abi.py      # ext header and FFI agree

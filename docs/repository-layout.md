@@ -10,7 +10,7 @@ and which parts are inherited and must not be touched.
 | entry | what it is | in the build |
 | --- | --- | --- |
 | `src/` | the C++ application: the wxWidgets shell, the effect classes, the project and track model, the file formats | yes - `add_subdirectory( src )`, and `src/CMakeLists.txt` runs `cargo` and links the Rust cores |
-| `rust/` | the Rust DSP core, crate `rustacity-dsp`, and the sandboxed extension engine, crate `rustacity-ext-host`, with the extensions themselves in `rust/extensions/` (see [`docs/architecture.md`](architecture.md)) | yes - built by cargo, linked as static libraries |
+| `rust/` | the Rust DSP core, crate `rustacity-dsp`, the sandboxed extension engine, crate `rustacity-ext-host`, and the extension manager, crates `rustacity-ext-manager` and `rustacity-ext-manager-gui`, with the extensions themselves in `rust/extensions/` (see [`docs/architecture.md`](architecture.md)) | yes for the DSP core and the host - built by cargo and linked as static libraries; the manager programs are not part of the application's build |
 | `include/` | headers shared across `src/` | yes |
 | `lib-src/` | vendored third-party libraries (portaudio, libsndfile, LV2, libvorbis, ...) plus `lib-src/FileDialog/` | yes, through `cmake-proxies/` |
 | `cmake-proxies/` | the CMake project that builds each vendored library, plus the project's own CMake modules | yes |

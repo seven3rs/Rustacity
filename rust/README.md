@@ -8,11 +8,13 @@ panic policy and the porting rule - is in
 crate.
 
 The same workspace also holds the sandboxed WebAssembly extension engine
-(`ext-api`, `ext-host` and the `ext-cli` tool), which is a separate subject with
-separate documentation: [`docs/extensions/API.md`](../docs/extensions/API.md),
+(`ext-api`, `ext-host` and the `ext-cli` tool) and the extension manager
+(`ext-manager` and its window, `ext-manager-gui`), which are a separate subject
+with separate documentation: [`docs/extensions/API.md`](../docs/extensions/API.md),
 [`docs/extensions/SANDBOX.md`](../docs/extensions/SANDBOX.md),
-[`docs/extensions/WRITING_AN_EXTENSION.md`](../docs/extensions/WRITING_AN_EXTENSION.md)
-and [`docs/extensions/INTEGRATION_NOTES.md`](../docs/extensions/INTEGRATION_NOTES.md).
+[`docs/extensions/WRITING_AN_EXTENSION.md`](../docs/extensions/WRITING_AN_EXTENSION.md),
+[`docs/extensions/MANAGER.md`](../docs/extensions/MANAGER.md) and
+[`docs/extensions/INTEGRATION_NOTES.md`](../docs/extensions/INTEGRATION_NOTES.md).
 
 ## Layout
 
@@ -37,6 +39,8 @@ and [`docs/extensions/INTEGRATION_NOTES.md`](../docs/extensions/INTEGRATION_NOTE
 | `ext-host/src/ffi.rs` | the extension host's C ABI, matching `ext-host/include/rustacity_ext.h` |
 | `ext-host/src/` | the sandbox: Wasmtime, the deadline, the memory ceiling, the log |
 | `ext-cli/src/` | `rustacity-ext-cli`, running one extension over one WAV file |
+| `ext-manager/src/` | `rustacity-ext-manager`: the extensions directory as a listing, and the library the window is built on |
+| `ext-manager-gui/src/` | `rustacity-ext-manager-gui`: the same work as a window, egui drawn natively |
 | `extensions/` | a workspace of its own: the example extensions and the hostile fixtures, built for `wasm32-wasip1` |
 
 ## Building and testing
