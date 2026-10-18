@@ -220,6 +220,7 @@ bool EffectExtension::Process()
    // A fresh run.  An extension keeps state between blocks, so the instance
    // is put back where it started rather than continued from the last run,
    // whether or not the framework reuses this object.
+   mFailed = false;
    StopInstance();
 
    if (!Loaded())
