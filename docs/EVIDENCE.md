@@ -73,8 +73,12 @@ Two limits, stated in that document and repeated here:
 
 - **ABI agreement.** `scripts/check_ext_abi.py` reports 25 exports and 25
   declarations, 13 error statuses each named in the header, 3 parameter kinds,
-  API version 1; `scripts/check_dsp_abi.py` reports 39 and 39. Both were checked
-  against deliberate drift to be sure they fail when they should.
+  API version 1; `scripts/check_dsp_abi.py` reports 39 and 39. Each gate was then
+  made to fail on purpose, by renaming one declaration in its own header: the
+  extension gate exits 1 with *"exported by `rust/ext-host/src/ffi.rs` but not
+  declared in `rust/ext-host/include/rustacity_ext.h`: `rustacity_ext_api_version`"*,
+  the DSP gate exits 1 with the mirror message, and both pass again once the file
+  is put back.
 - **Containment.** `rust/ext-host/tests/hostile.rs` loads ten deliberately
   misbehaving modules and insists on what happened to each: the 5-second
   deadline (`an_infinite_loop_is_stopped_within_the_deadline`), the memory
