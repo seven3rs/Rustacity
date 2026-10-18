@@ -561,6 +561,66 @@ jobs:
         run: cargo fmt --all --check
 
   # =========================================================================
+  # CLI: the extension engine's command-line tool and the example extensions
+  #
+  # What someone can try without building the editor: one Linux binary (plain
+  # Rust, nothing platform-specific in it) beside the extensions
+  # rust/extensions/variants.txt describes, the sample and the checker from
+  # examples/, and the three contract documents.  It is also the repository's
+  # own check that the quick start in README.md still works: the run below is
+  # that sequence, on the committed sample.  The release job renames the
+  # archive and publishes it beside the installers.
+  # =========================================================================
+  cli:
+    name: CLI artifacts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Add the WebAssembly target
+        run: rustup target add wasm32-wasip1
+
+      - name: Build the command-line tool
+        working-directory: rust
+        run: cargo build --release -p rustacity-ext-cli
+
+      - name: Build the extensions
+        run: scripts/build-extensions.sh
+
+      # The quick start, run where it is written down.  The generated sample
+      # has to equal the committed one byte for byte: if that drifts, the
+      # checker and the documentation describe a file that is gone.
+      - name: Run the quick start
+        run: |
+          set -eux
+          ./rust/target/release/rustacity-ext-cli --describe rust/extensions/dist/gain-invert
+          python3 examples/make-sine-sweep.py /tmp/sine-sweep.wav
+          cmp examples/sine-sweep.wav /tmp/sine-sweep.wav
+          ./rust/target/release/rustacity-ext-cli rust/extensions/dist/gain-invert \
+            /tmp/sine-sweep.wav /tmp/gained.wav --param gain_db=6
+          python3 examples/check-output.py /tmp/sine-sweep.wav /tmp/gained.wav --gain-db 6
+
+      - name: Package
+        run: |
+          set -eux
+          staging="rustacity-cli"
+          mkdir -p "${staging}/extensions"
+          cp rust/target/release/rustacity-ext-cli "${staging}/"
+          cp -r rust/extensions/dist/. "${staging}/extensions/"
+          cp -r examples "${staging}/examples"
+          cp docs/extensions/API.md docs/extensions/SANDBOX.md \
+             docs/extensions/WRITING_AN_EXTENSION.md "${staging}/"
+          mkdir -p dist
+          tar -czf "dist/${GITHUB_SHA}.tar.gz" "${staging}"
+
+      - name: Upload the archive
+        uses: actions/upload-artifact@v7
+        with:
+          name: CLI_Linux
+          path: dist/*
+
+  # =========================================================================
   # SHARED: Publish a GitHub Release when a tag is pushed
   #
   # The release is created with the RELEASE_TOKEN repository secret, which
@@ -571,7 +631,7 @@ jobs:
     # Only run for tag pushes, after the build matrix, the Rust tests and the
     # extension engine have succeeded
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [ build, rust-test, extensions ]
+    needs: [ build, rust-test, extensions, cli ]
     runs-on: ubuntu-latest
     # GITHUB_TOKEN only reads the workflow's artifacts here; the release
     # itself is published with RELEASE_TOKEN below.
@@ -609,9 +669,10 @@ jobs:
           # them.  Both are the build's business, so each one is renamed
           # here to the name it is published under, and a package the map
           # does not know fails the release rather than being published as
-          # it stands.  Windows ships an archive and two installers; two
-          # packages of one kind is a mistake as well, so a published name
-          # may only be claimed once.
+          # it stands.  Windows ships an archive and two installers, Linux
+          # an AppImage and the command-line tool's archive, macOS a dmg;
+          # two packages of one kind is a mistake as well, so a published
+          # name may only be claimed once.
           mkdir -p assets
           while IFS= read -r f; do
             case "$(basename "$f")" in
@@ -620,6 +681,7 @@ jobs:
               rustacity-win-*.exe) suffix="win-${VERSION}-x86_64.exe" ;;
               *.dmg)               suffix="macOS-${VERSION}-x86_64.dmg" ;;
               *.AppImage)          suffix="linux-${VERSION}-x86_64.AppImage" ;;
+              *.tar.gz)            suffix="cli-linux-${VERSION}-x86_64.tar.gz" ;;
               *)
                 echo "::error::No release asset name is defined for '$(basename "$f")'"
                 exit 1
@@ -639,6 +701,10 @@ jobs:
           # release, as the platform assets are.
           git archive --format=tar --prefix="rustacity-${VERSION}/" HEAD \
             | xz -T0 > "assets/rustacity-sources-${VERSION}.tar.xz"
+
+          # Checksums for everything the release carries, made after the
+          # names are final so that each line names the file it belongs to.
+          ( cd assets && sha256sum -- * > SHA256SUMS )
 
           FILES=(assets/*)
           if gh release view "${TAG}" >/dev/null 2>&1; then
