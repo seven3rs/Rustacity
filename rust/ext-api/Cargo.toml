@@ -1,0 +1,15 @@
+[package]
+name = "rustacity-ext-api"
+version = "0.5.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+description = "Extension API of Rustacity: the manifest, the ABI names and the error type that the host and its tools share"
+publish = false
+
+[lib]
+name = "rustacity_ext_api"
+
+[dependencies]
+serde = { version = "1", features = ["derive"] }
+thiserror = "2"
+toml = "0.8"
