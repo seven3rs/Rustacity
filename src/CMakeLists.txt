@@ -451,6 +451,8 @@ list( APPEND SOURCES
       effects/EffectUI.h
       effects/Equalization.cpp
       effects/Equalization.h
+      effects/Extension.cpp
+      effects/Extension.h
       effects/Fade.cpp
       effects/Fade.h
       effects/FindClipping.cpp
@@ -1375,16 +1377,23 @@ source_group(
 )
 
 # =========================================================================
-# Rust DSP core (crate "rustacity-dsp" under rust/)
+# Rust cores (crates "rustacity-dsp" and "rustacity-ext-host" under rust/)
 #
-# The filter design and the sample processing live in Rust; cargo
-# compiles them into a static library that the application links
-# through the C ABI in rust/dsp/include/rustacity_dsp.h.
+# The filter design and the sample processing live in Rust, and so does
+# the sandbox that runs WebAssembly extensions; one cargo build of the
+# workspace in rust/ produces both static libraries, which the
+# application links through the C ABIs in rust/dsp/include/rustacity_dsp.h
+# and rust/ext-host/include/rustacity_ext.h.
+#
+# The extension *crates* are not here, and must not be: rust/extensions is
+# a workspace of its own, excluded from rust/Cargo.toml, so that a
+# compiler upgrade for wasm cannot break the editor's build.
 # =========================================================================
 
 list( APPEND INCLUDES
    PRIVATE
       ${topdir}/rust/dsp/include
+      ${topdir}/rust/ext-host/include
 )
 
 find_program( CARGO_EXECUTABLE cargo )
@@ -1399,41 +1408,63 @@ if( WIN32 )
       set( RUST_TARGET_TRIPLE "i686-pc-windows-msvc" )
    endif()
    set( RUST_DSP_LIB_NAME "rustacity_dsp.lib" )
+   set( RUST_EXT_HOST_LIB_NAME "rustacity_ext.lib" )
 elseif( APPLE )
    set( RUST_TARGET_TRIPLE "x86_64-apple-darwin" )
    set( RUST_DSP_LIB_NAME "librustacity_dsp.a" )
+   set( RUST_EXT_HOST_LIB_NAME "librustacity_ext.a" )
 elseif( CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64" )
    set( RUST_TARGET_TRIPLE "aarch64-unknown-linux-gnu" )
    set( RUST_DSP_LIB_NAME "librustacity_dsp.a" )
+   set( RUST_EXT_HOST_LIB_NAME "librustacity_ext.a" )
 else()
    set( RUST_TARGET_TRIPLE "x86_64-unknown-linux-gnu" )
    set( RUST_DSP_LIB_NAME "librustacity_dsp.a" )
+   set( RUST_EXT_HOST_LIB_NAME "librustacity_ext.a" )
 endif()
 
 set( RUST_DSP_ROOT "${topdir}/rust" )
 set( RUST_DSP_LIB
    "${RUST_DSP_ROOT}/target/${RUST_TARGET_TRIPLE}/release/${RUST_DSP_LIB_NAME}" )
+set( RUST_EXT_HOST_LIB
+   "${RUST_DSP_ROOT}/target/${RUST_TARGET_TRIPLE}/release/${RUST_EXT_HOST_LIB_NAME}" )
 
+# Everything that goes into the cargo build: a change to either crate, or
+# to the lock file, is a reason to build both libraries again.
 file( GLOB_RECURSE RUST_DSP_SOURCES CONFIGURE_DEPENDS
    "${RUST_DSP_ROOT}/dsp/src/*.rs" )
+file( GLOB_RECURSE RUST_EXT_HOST_SOURCES CONFIGURE_DEPENDS
+   "${RUST_DSP_ROOT}/ext-api/src/*.rs"
+   "${RUST_DSP_ROOT}/ext-host/src/*.rs" )
 list( APPEND RUST_DSP_SOURCES
+   ${RUST_EXT_HOST_SOURCES}
    "${RUST_DSP_ROOT}/Cargo.toml"
+   "${RUST_DSP_ROOT}/Cargo.lock"
    "${RUST_DSP_ROOT}/dsp/Cargo.toml"
+   "${RUST_DSP_ROOT}/ext-api/Cargo.toml"
+   "${RUST_DSP_ROOT}/ext-host/Cargo.toml"
 )
 
+# One custom command, because it is one cargo build: both libraries are
+# named as outputs, so either custom target below brings it in.  Only the
+# two crates the application links are asked for - the workspace also
+# holds a command line tool, which the editor has no use for and which
+# would drag its WAV reader into this build.
 add_custom_command(
-   OUTPUT "${RUST_DSP_LIB}"
+   OUTPUT "${RUST_DSP_LIB}" "${RUST_EXT_HOST_LIB}"
    COMMAND "${CARGO_EXECUTABLE}" build --release
            --target "${RUST_TARGET_TRIPLE}"
            --manifest-path "${RUST_DSP_ROOT}/Cargo.toml"
+           -p rustacity-dsp -p rustacity-ext-host
    DEPENDS ${RUST_DSP_SOURCES}
    WORKING_DIRECTORY "${RUST_DSP_ROOT}"
-   COMMENT "Building the Rust DSP core (${RUST_TARGET_TRIPLE})"
+   COMMENT "Building the Rust cores (${RUST_TARGET_TRIPLE})"
    VERBATIM
 )
 
 add_custom_target( rustacity_dsp DEPENDS "${RUST_DSP_LIB}" )
-add_dependencies( ${TARGET} rustacity_dsp )
+add_custom_target( rustacity_ext_host DEPENDS "${RUST_EXT_HOST_LIB}" )
+add_dependencies( ${TARGET} rustacity_dsp rustacity_ext_host )
 
 target_sources( ${TARGET} PRIVATE ${HEADERS} ${SOURCES} ${RESOURCES} ${MAC_RESOURCES} ${WIN_RESOURCES} )
 target_compile_definitions( ${TARGET} PRIVATE ${DEFINES} )
@@ -1442,8 +1473,8 @@ target_include_directories( ${TARGET} PRIVATE ${INCLUDES} )
 target_link_options( ${TARGET} PRIVATE ${LDFLAGS} )
 target_link_libraries( ${TARGET} PRIVATE ${LIBRARIES} )
 
-# Link the Rust DSP core built above
-target_link_libraries( ${TARGET} PRIVATE "${RUST_DSP_LIB}" )
+# Link the Rust cores built above
+target_link_libraries( ${TARGET} PRIVATE "${RUST_DSP_LIB}" "${RUST_EXT_HOST_LIB}" )
 
 if( MSVC )
    # The Rust static library references Windows system libraries that
