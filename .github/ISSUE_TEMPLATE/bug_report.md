@@ -23,4 +23,4 @@ Screenshots, a minimal project file, or a short recording. For an extension
 problem, say which extension, and include its `extension.toml`.
 
 If this is a security problem, please do not open an issue: see
-[SECURITY.md](../SECURITY.md).
+[SECURITY.md](../../SECURITY.md).

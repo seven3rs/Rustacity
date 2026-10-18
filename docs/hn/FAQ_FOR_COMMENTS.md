@@ -114,7 +114,7 @@ of work, not a thing I am hiding.
 
 Windows x64, Linux x86_64 and macOS x86_64 (Intel), built and packaged by CI
 from
-[`.github/workflows/cmake_build.yml`](../.github/workflows/cmake_build.yml).
+[`.github/workflows/cmake_build.yml`](../../.github/workflows/cmake_build.yml).
 arm64 macOS and 32-bit Windows are not built at all — their triples are set by
 pattern from the DSP core's and no build has been attempted. The macOS and
 Windows installers are unsigned, so both platforms warn on install; that is
@@ -146,7 +146,7 @@ is the one thing a reader cannot verify from the tree, so it should be yours.
 ### "How can I help?"
 
 Bug reports and feature requests have templates; the rules are in
-[CONTRIBUTING.md](../CONTRIBUTING.md) — one idea per commit, no renames,
+[CONTRIBUTING.md](../../CONTRIBUTING.md) — one idea per commit, no renames,
 `lib-src/` untouched, a port is finished only when the C++ it replaced is gone.
 The most useful contributions right now are probably: a review of the extension
 ABI before it hardens, an extension written against the template, and golden
