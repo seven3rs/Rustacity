@@ -256,9 +256,10 @@ docs/extensions/WRITING_AN_EXTENSION.md   how to write one
 docs/extensions/INTEGRATION_NOTES.md      this file
 scripts/build-extensions.sh         builds the variants for wasm32-wasip1
 scripts/check_ext_abi.py            header against FFI, and the status numbers
-src/CMakeLists.txt                  one include path, one static library, one
-                                    cargo build that produces both
-src/effects/Extension.h             the one new effect class (unbuilt)
+src/CMakeLists.txt                  two include paths, two static libraries,
+                                    one cargo build, one driving target
+src/effects/Extension.h             the one new effect class (compiled by CI,
+                                    not linked yet - see section 4)
 src/effects/Extension.cpp
 ```
 
