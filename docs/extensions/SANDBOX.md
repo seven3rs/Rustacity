@@ -114,11 +114,19 @@ why the sandbox is small enough to describe completely.
 
 ## 4. Checking it yourself
 
+From the repository root:
+
 ```
 scripts/build-extensions.sh                       # build every fixture
+python3 scripts/check_ext_abi.py                  # header and FFI still agree
+```
+
+and the tests, which build their own fixtures whether or not the above was run:
+
+```
+cd rust
 cargo test -p rustacity-ext-host --test hostile   # the containment tests
 cargo test --workspace                            # all of it, dsp included
-python scripts/check_ext_abi.py                   # header and FFI still agree
 ```
 
 and from the outside, without the tests:
