@@ -1445,13 +1445,18 @@ list( APPEND RUST_DSP_SOURCES
    "${RUST_DSP_ROOT}/ext-host/Cargo.toml"
 )
 
-# One custom command, because it is one cargo build: both libraries are
-# named as outputs, so either custom target below brings it in.  Only the
-# two crates the application links are asked for - the workspace also
-# holds a command line tool, which the editor has no use for and which
-# would drag its WAV reader into this build.
+# One custom command, because it is one cargo build.  The DSP core's
+# library is the output the build gates on, and the sandbox's is a
+# byproduct of the same command: a command with two outputs is one rule
+# per output to the Visual Studio generator, which would ask cargo for
+# the same build twice, and the Xcode generator refuses a command
+# attached to more than one target.  Both files are linked below.  Only
+# the two crates the application links are asked for - the workspace
+# also holds a command line tool, which the editor has no use for and
+# which would drag its WAV reader into this build.
 add_custom_command(
-   OUTPUT "${RUST_DSP_LIB}" "${RUST_EXT_HOST_LIB}"
+   OUTPUT "${RUST_DSP_LIB}"
+   BYPRODUCTS "${RUST_EXT_HOST_LIB}"
    COMMAND "${CARGO_EXECUTABLE}" build --release
            --target "${RUST_TARGET_TRIPLE}"
            --manifest-path "${RUST_DSP_ROOT}/Cargo.toml"
@@ -1462,13 +1467,13 @@ add_custom_command(
    VERBATIM
 )
 
-# Both libraries come out of the one build, so both targets depend on the
-# first of them.  The Visual Studio generator turns a custom command with
-# two outputs into one rule per output, and a target that depends on the
-# second output's rule would ask cargo to do the same work a second time.
+# The one target that drives that command: the documentation for a custom
+# command used by more than one target is explicit that it belongs to a
+# single target on which the others depend.  It is named for the DSP core,
+# but it builds the sandbox too - the two libraries are one cargo
+# invocation, and there is no way to ask for one without the other.
 add_custom_target( rustacity_dsp DEPENDS "${RUST_DSP_LIB}" )
-add_custom_target( rustacity_ext_host DEPENDS "${RUST_DSP_LIB}" )
-add_dependencies( ${TARGET} rustacity_dsp rustacity_ext_host )
+add_dependencies( ${TARGET} rustacity_dsp )
 
 target_sources( ${TARGET} PRIVATE ${HEADERS} ${SOURCES} ${RESOURCES} ${MAC_RESOURCES} ${WIN_RESOURCES} )
 target_compile_definitions( ${TARGET} PRIVATE ${DEFINES} )
