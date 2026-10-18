@@ -36,12 +36,11 @@ Not posted. This is a draft for the maintainer to edit, date, and post.
 > parameters).
 >
 > 144 tests pass in the Rust workspace, and the quick start is a short
-> sequence of commands that needs no C++ toolchain. Two things I want to be
-> plain about: the
-> sandbox is containment inside the editor's process, not an operating-system
-> boundary — a bug in Wasmtime or in my glue is a bug in the editor — and the
-> application itself is still Audacity 2.4.1's C++ tree, not a rewrite. This is
-> one person's work in the open.
+> sequence of commands that needs no wxWidgets and no editor build. Two things I
+> want to be plain about: the sandbox is containment inside the editor's process,
+> not an operating-system boundary — a bug in Wasmtime or in my glue is a bug in
+> the editor — and the application itself is still Audacity 2.4.1's C++ tree, not
+> a rewrite. This is one person's work in the open.
 >
 > The part I'd most like torn apart: the ABI and the sandbox limits. If you have
 > written a plugin host, what did you get wrong first?
@@ -50,7 +49,7 @@ Not posted. This is a draft for the maintainer to edit, date, and post.
 
 > A few things that do not fit in the post:
 >
-> **How to try it without building anything.** `rustup target add
+> **How to try it without building the editor.** `rustup target add
 > wasm32-wasip1`, `scripts/build-extensions.sh`, `cd rust && cargo build
 > --release -p rustacity-ext-cli`, then point the binary at the sample in
 > `examples/`. That sample is generated (a one-second sweep, no third-party

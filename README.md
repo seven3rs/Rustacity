@@ -98,8 +98,8 @@ has the Windows, macOS and Linux packages CI builds. They contain the Rust DSP
 core but **cannot run an extension yet**; that needs the commands below.
 
 This builds the extension engine and its command-line tool, and runs the
-reference extension over a generated sample. No C++ toolchain, no wxWidgets, no
-editor. Linux, macOS and Windows (Git Bash or WSL) all work, with three things
+reference extension over a generated sample. No wxWidgets and no editor build.
+Linux, macOS and Windows (Git Bash or WSL) all work, with three things
 worth knowing first: Windows PowerShell needs `bash` for the extension build
 script; Python 3 is needed for the two scripts in `examples/` — `python3` on
 Linux and macOS, usually `python` on a Windows install; and on Windows rustc
