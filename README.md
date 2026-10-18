@@ -254,9 +254,9 @@ features.
 
 The application needs a C++ toolchain, CMake, a Rust toolchain (the CMake build
 compiles the Rust cores and links them) and wxWidgets from the pinned fork
-(`audacity/wxWidgets`, branch `audacity-fixes-3.1.3`). This machine has no
-wxWidgets and no MSVC, so the application was **not** built here; what has built
-it, on every commit on `main`, is CI.
+(`audacity/wxWidgets`, branch `audacity-fixes-3.1.3`). There has been no full
+local build of the application: the machine this fork was developed on has
+neither wxWidgets nor MSVC. What has built it, on every commit on `main`, is CI.
 
 The canonical recipe is [`.github/workflows/cmake_build.yml`](.github/workflows/cmake_build.yml):
 what it runs is what produces the releases. It configures with CMake and builds
