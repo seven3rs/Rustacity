@@ -25,6 +25,10 @@ Re-running the generator has to reproduce that file byte for byte:
 python3 examples/make-sine-sweep.py /tmp/sine-sweep.wav
 ```
 
+(`python3` is the name on Linux, macOS and WSL; a Windows install usually has it
+as `python`. Either way the scripts are standard-library Python 3, and neither
+needs anything installed.)
+
 The sweep is ramped logarithmically, at half scale so that +6 dB does not clip;
 it is deliberately a signal whose amplitude is easy to predict rather than
 anything that sounds good.
