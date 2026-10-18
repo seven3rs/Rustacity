@@ -196,6 +196,37 @@ fn a_gain_change_mid_stream_is_slewed_and_a_reset_clears_the_slew() {
     assert_close(&after[0], &expected, 1e-6, "after a reset, the gain snaps");
 }
 
+/// A slew steps once per frame, not once per sample: every channel of a frame
+/// is at the same point of the curve. Stepping per sample would leave the
+/// second channel a hundred and twenty-eighth of the way behind the first, and
+/// the pair would come out at different gains for the length of the slew.
+#[test]
+fn a_slew_treats_every_channel_of_a_frame_alike() {
+    let engine = engine();
+    let extension = engine.load(&fixture("gain-invert")).expect("loads");
+    let mut instance = extension
+        .instantiate(48_000.0, 1024, 2)
+        .expect("a stereo instance");
+
+    // One block at unity, so that the change below is a change mid-stream.
+    instance.set_param_by_id("gain_db", 0.0).expect("gain");
+    let _ = process_into(&mut instance, &planar(2, 64));
+
+    instance.set_param_by_id("gain_db", 6.0).expect("gain");
+    let input = vec![signal(512, 0), signal(512, 1)];
+    let output = process_into(&mut instance, &input);
+
+    for frame in 0..512 {
+        let (left_in, right_in) = (input[0][frame], input[1][frame]);
+        let (left_out, right_out) = (output[0][frame], output[1][frame]);
+        assert!(
+            (left_out * right_in - right_out * left_in).abs() <= 1e-6,
+            "frame {frame} left the channels at different gains: {left_out} / {left_in} \
+             against {right_out} / {right_in}"
+        );
+    }
+}
+
 #[test]
 fn a_channel_count_that_does_not_match_is_refused() {
     let engine = engine();

@@ -204,20 +204,24 @@ pub extern "C" fn rx_process(in_ptr: i32, out_ptr: i32, frames: i32) -> i32 {
     unsafe {
         let input = in_ptr as *const f32;
         let output = out_ptr as *mut f32;
-        for channel in 0..state.channels {
-            let offset = channel * frames;
-            for index in 0..frames {
-                if state.remaining > 0.0 {
-                    state.remaining -= 1.0;
-                    if state.remaining <= 0.0 {
-                        state.remaining = 0.0;
-                        state.current = state.target;
-                    } else {
-                        state.current = state.from
-                            + (state.target - state.from) * (1.0 - state.remaining / SLEW_FRAMES);
-                    }
+        for index in 0..frames {
+            // One step per frame, not per sample: every channel of a frame is
+            // at the same point of the slew, or the image shifts sideways while
+            // the gain moves.
+            if state.remaining > 0.0 {
+                state.remaining -= 1.0;
+                if state.remaining <= 0.0 {
+                    state.remaining = 0.0;
+                    state.current = state.target;
+                } else {
+                    state.current = state.from
+                        + (state.target - state.from) * (1.0 - state.remaining / SLEW_FRAMES);
                 }
-                *output.add(offset + index) = *input.add(offset + index) * state.current;
+            }
+            let gain = state.current;
+            for channel in 0..state.channels {
+                let offset = channel * frames + index;
+                *output.add(offset) = *input.add(offset) * gain;
             }
         }
     }
