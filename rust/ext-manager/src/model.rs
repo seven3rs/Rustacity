@@ -18,14 +18,12 @@
 use std::path::{Path, PathBuf};
 
 use rustacity_ext_api::{Manifest, Parameter, ParameterKind};
-use serde::{Deserialize, Serialize};
 
 /// The subdirectory of the extensions root that holds what is turned off.
 pub const DISABLED_DIR: &str = "disabled";
 
 /// Which side of the root an extension is on.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
-#[serde(rename_all = "lowercase")]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Slot {
     /// In the root.  The editor loads these.
     Enabled,
@@ -34,7 +32,7 @@ pub enum Slot {
 }
 
 /// Everything the manager knows about one installed extension.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Entry {
     /// The directory's own name.  This is what every operation addresses,
     /// because it is the only name that is certainly unique per root; the
@@ -51,12 +49,34 @@ pub struct Entry {
     pub manifest_error: Option<String>,
 }
 
-/// A manifest, flattened into something that can go over the wire.
+impl Entry {
+    /// What to call this extension in a listing.
+    ///
+    /// The name the extension gives itself, with the directory's name beside
+    /// it whenever the two differ: the directory is what every operation
+    /// addresses, and it is often the only thing telling two similarly named
+    /// extensions apart.
+    pub fn label(&self) -> String {
+        match &self.manifest {
+            Some(manifest) => {
+                let mut label = manifest.name.clone();
+                if self.name != manifest.name {
+                    label.push_str(&format!("   ({})", self.name));
+                }
+                label.push_str(&format!("   v{}", manifest.version));
+                label
+            }
+            None => format!("{}   (manifest cannot be read)", self.name),
+        }
+    }
+}
+
+/// A manifest, flattened into the shape a window can show.
 ///
-/// The API's own [`Manifest`] is parsed rather than deserialized, deliberately,
-/// so it has no `Serialize` of its own and this is the boundary where it gets
-/// one.
-#[derive(Debug, Clone, Serialize)]
+/// This is not the API's own [`Manifest`] but a plain copy of the parts of it
+/// worth displaying, so that what draws an extension does not have to know the
+/// API's types - or keep a whole manifest alive - to draw one.
+#[derive(Debug, Clone)]
 pub struct ManifestInfo {
     pub api_version: i32,
     pub id: String,
@@ -73,7 +93,7 @@ pub struct ManifestInfo {
 }
 
 /// One parameter, flattened.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct ParameterInfo {
     pub id: String,
     pub name: String,
@@ -133,7 +153,7 @@ impl From<&Manifest> for ManifestInfo {
 }
 
 /// What is in the extensions directory.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Inventory {
     pub root: String,
     pub disabled_root: String,
@@ -218,7 +238,7 @@ fn read_entry(name: String, directory: PathBuf, slot: Slot) -> Entry {
 }
 
 /// What a move did.
-#[derive(Debug, Clone, Serialize)]
+#[derive(Debug, Clone)]
 pub struct Outcome {
     pub name: String,
     pub slot: Slot,
@@ -445,6 +465,24 @@ mod tests {
         );
         // No module was written, and its absence is visible as such.
         assert_eq!(entry.module_bytes, None);
+    }
+
+    #[test]
+    fn an_extension_is_named_by_its_manifest_and_its_directory() {
+        let temp = TempRoot::new("label");
+        let root = temp.path();
+        // The manifest calls this one "Test extension" and the directory is
+        // "gain-invert", so both are shown: either name alone could belong to
+        // something else.
+        install(root, "gain-invert", "com.rustacity.gain-invert");
+        // Here the two agree, so the directory is not repeated.
+        install(root, "Test extension", "com.rustacity.agreed");
+        let inventory = scan(root);
+        assert_eq!(
+            inventory.entries[0].label(),
+            "Test extension   (gain-invert)   v0.1.0"
+        );
+        assert_eq!(inventory.entries[1].label(), "Test extension   v0.1.0");
     }
 
     #[test]

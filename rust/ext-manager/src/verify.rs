@@ -37,7 +37,7 @@ const PROBE_BLOCK: usize = 4096;
 const PROBE_CHANNELS: usize = 1;
 
 /// What the host made of an extension directory.
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone)]
 pub struct Report {
     pub name: String,
     pub slot: Slot,

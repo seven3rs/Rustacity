@@ -2,41 +2,37 @@
 // Copyright (C) 2026 Sadik Pranto
 // SPDX-License-Identifier: GPL-2.0-or-later
 
-//! The extension manager, as a program.
+//! The extension manager as a program without a window.
 //!
-//! Run it, and it says where the extensions are, starts the local server, and
-//! opens it in the browser.  The interface is optional - the API answers either
-//! way, and `--print-root` is the whole tool when all you want is the path.
+//! Run it with no arguments and it says where the extensions are and what is
+//! installed there, as text: the same listing the window shows, readable in a
+//! terminal and easy to paste into a bug report.  Turning an extension on or
+//! off, and asking the host whether one still loads, is the window's work -
+//! `rustacity-ext-manager-gui`, which links this crate rather than copying it.
 
-use std::net::TcpListener;
 use std::path::PathBuf;
 use std::process::ExitCode;
-use std::sync::{Arc, Mutex};
 
-use rustacity_ext_manager::{open, paths, server};
+use rustacity_ext_manager::model::{self, Entry, Inventory, Slot};
+use rustacity_ext_manager::paths;
 
 /// What the manager is and what it takes.
 const USAGE: &str = "\
 Usage:
 rustacity-ext-manager [options]
 
-Lists the extensions installed for Rustacity, turns them on and off, and asks
-the extension host whether each one still loads.  It starts a server on the
-loopback interface and opens the interface in a browser; a browser cannot touch
-a directory itself, which is why there are two halves.
+Lists the extensions installed for Rustacity, and where they are.  It changes
+nothing: turning an extension on or off, and asking the extension host whether
+one still loads, is done in the window (rustacity-ext-manager-gui).
 
 Extensions live in <user data directory>/Extensions, beside the editor's
 Plug-Ins directory: %APPDATA%\\rustacity on Windows, ~/.rustacity-data on GTK,
 ~/Library/Application Support/rustacity on macOS.
 
 Options:
---root <dir>       the extensions directory to manage; RUSTACITY_EXTENSIONS_DIR
+--root <dir>       the extensions directory to read; RUSTACITY_EXTENSIONS_DIR
                    sets the same thing, and the platform default is used if
                    neither does
---assets <dir>     the built interface to serve; by default a directory named
-                   assets beside this program, if there is one
---port <n>         the port to listen on; 0 (the default) picks a free one
---no-open          do not open a browser
 --print-root       print the extensions directory and stop
 --help, -h         this text
 --version          this tool's version and the extension API it speaks
@@ -52,17 +48,10 @@ enum Fault {
 
 /// What the arguments asked for.
 enum Request {
-    Run(Options),
+    List(PathBuf),
     PrintRoot(PathBuf),
     Help,
     Version,
-}
-
-struct Options {
-    root: PathBuf,
-    assets: Option<PathBuf>,
-    port: u16,
-    open: bool,
 }
 
 fn main() -> ExitCode {
@@ -99,17 +88,14 @@ fn run(arguments: &[String]) -> Result<(), Fault> {
             println!("{}", root.display());
             Ok(())
         }
-        Request::Run(options) => serve(options),
+        Request::List(root) => {
+            print!("{}", listing(&model::scan(&root)));
+            Ok(())
+        }
     }
 }
 
 fn parse(arguments: &[String]) -> Result<Request, Fault> {
-    let mut options = Options {
-        root: PathBuf::new(),
-        assets: None,
-        port: 0,
-        open: true,
-    };
     let mut root: Option<PathBuf> = None;
     let mut print_root = false;
 
@@ -117,27 +103,16 @@ fn parse(arguments: &[String]) -> Result<Request, Fault> {
     while index < arguments.len() {
         let argument = arguments[index].as_str();
         index += 1;
-        // Everything but the help and the version takes a value; taking it is
-        // the same three lines every time, so it is written once here.
-        let mut value = |what: &str| -> Result<String, Fault> {
-            let value = arguments
-                .get(index)
-                .ok_or_else(|| Fault::Usage(format!("{what} needs a value after it")))?;
-            index += 1;
-            Ok(value.clone())
-        };
         match argument {
             "--help" | "-h" => return Ok(Request::Help),
             "--version" => return Ok(Request::Version),
-            "--no-open" => options.open = false,
             "--print-root" => print_root = true,
-            "--root" => root = Some(PathBuf::from(value("--root")?)),
-            "--assets" => options.assets = Some(PathBuf::from(value("--assets")?)),
-            "--port" => {
-                let text = value("--port")?;
-                options.port = text
-                    .parse::<u16>()
-                    .map_err(|_| Fault::Usage(format!("'{text}' is not a port number")))?;
+            "--root" => {
+                let value = arguments
+                    .get(index)
+                    .ok_or_else(|| Fault::Usage("--root needs a value after it".to_owned()))?;
+                index += 1;
+                root = Some(PathBuf::from(value));
             }
             other => return Err(Fault::Usage(format!("'{other}' is not an option"))),
         }
@@ -152,88 +127,150 @@ fn parse(arguments: &[String]) -> Result<Request, Fault> {
             ))
         })?,
     };
-    options.root = root.clone();
-    if print_root {
-        return Ok(Request::PrintRoot(root));
-    }
-    if options.assets.is_none() {
-        options.assets = default_assets();
-    }
-    Ok(Request::Run(options))
+    Ok(if print_root {
+        Request::PrintRoot(root)
+    } else {
+        Request::List(root)
+    })
 }
 
-/// The interface beside this program, when it was built there.
-fn default_assets() -> Option<PathBuf> {
-    let beside = std::env::current_exe().ok()?.parent()?.join("assets");
-    beside.is_dir().then_some(beside)
-}
-
-fn serve(options: Options) -> Result<(), Fault> {
-    let listener = TcpListener::bind(("127.0.0.1", options.port)).map_err(|error| {
-        Fault::Failed(format!(
-            "cannot listen on 127.0.0.1:{}: {error}",
-            options.port
-        ))
-    })?;
-    let address = listener
-        .local_addr()
-        .map_err(|error| Fault::Failed(format!("cannot read back the address: {error}")))?;
-    let url = format!("http://{address}/");
-
-    println!("extensions: {}", options.root.display());
-    println!("manager:    {url}");
-    match &options.assets {
-        Some(assets) => println!("interface:  {}", assets.display()),
-        None => {
-            println!("interface:  not built; run scripts/build-manager-ui.sh, or pass --assets")
+/// The listing, as text.
+///
+/// Pure, so that what it looks like can be checked without a directory to
+/// read: it takes the same [`Inventory`] the window is drawn from.
+fn listing(inventory: &Inventory) -> String {
+    let mut text = format!("{}\n", inventory.root);
+    if inventory.entries.is_empty() && inventory.ignored.is_empty() {
+        text.push_str("\nNothing is installed here.\n");
+        return text;
+    }
+    for (slot, heading) in [(Slot::Enabled, "Enabled"), (Slot::Disabled, "Turned off")] {
+        let entries: Vec<&Entry> = inventory
+            .entries
+            .iter()
+            .filter(|entry| entry.slot == slot)
+            .collect();
+        if entries.is_empty() {
+            continue;
+        }
+        text.push_str(&format!("\n{heading} ({})\n", entries.len()));
+        for entry in entries {
+            text.push_str(&format!("  {}\n", entry.label()));
         }
     }
-    println!("api:        curl -H 'x-rustacity-manager: 1' {url}api/state");
-    println!("stop with Ctrl-C");
-
-    if options.open {
-        if let Err(error) = open::open_url(&url) {
-            eprintln!("could not open a browser: {error}; the manager is at {url}");
+    if !inventory.ignored.is_empty() {
+        text.push_str(&format!(
+            "\nNot extensions ({}) - directories holding no manifest, and loose files\n",
+            inventory.ignored.len()
+        ));
+        for name in &inventory.ignored {
+            text.push_str(&format!("  {name}\n"));
         }
     }
-
-    let shared = Arc::new(server::Shared {
-        root: options.root,
-        assets: options.assets,
-        changes: Mutex::new(()),
-    });
-    server::serve(listener, shared)
-        .map_err(|error| Fault::Failed(format!("the server stopped: {error}")))
+    text
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use rustacity_ext_manager::model::{ManifestInfo, ParameterInfo};
 
     fn arguments(list: &[&str]) -> Vec<String> {
         list.iter().map(|argument| argument.to_string()).collect()
     }
 
-    #[test]
-    fn a_root_and_a_port_are_read() {
-        let request = parse(&arguments(&[
-            "--root",
-            "/somewhere/extensions",
-            "--port",
-            "1234",
-            "--no-open",
-        ]))
-        .expect("parsed");
-        let Request::Run(options) = request else {
-            panic!("not a run");
-        };
-        assert_eq!(options.root, PathBuf::from("/somewhere/extensions"));
-        assert_eq!(options.port, 1234);
-        assert!(!options.open);
+    /// An entry the listing can be built from without touching a directory.
+    fn entry(name: &str, slot: Slot, manifest: Option<ManifestInfo>) -> Entry {
+        Entry {
+            name: name.to_owned(),
+            slot,
+            directory: format!("/somewhere/{name}"),
+            module_bytes: Some(1024),
+            manifest,
+            manifest_error: None,
+        }
+    }
+
+    fn manifest(name: &str) -> ManifestInfo {
+        ManifestInfo {
+            api_version: 1,
+            id: "com.rustacity.test".to_owned(),
+            name: name.to_owned(),
+            version: "0.1.0".to_owned(),
+            description: None,
+            author: None,
+            license: None,
+            capabilities: Vec::new(),
+            processes_audio: true,
+            parameters: Vec::<ParameterInfo>::new(),
+        }
     }
 
     #[test]
-    fn the_root_can_be_printed_without_serving_anything() {
+    fn a_root_with_nothing_in_it_says_so() {
+        let inventory = Inventory {
+            root: "/somewhere".to_owned(),
+            disabled_root: "/somewhere/disabled".to_owned(),
+            entries: Vec::new(),
+            ignored: Vec::new(),
+        };
+        assert_eq!(
+            listing(&inventory),
+            "/somewhere\n\nNothing is installed here.\n"
+        );
+    }
+
+    #[test]
+    fn the_listing_is_grouped_by_slot_and_names_the_rest() {
+        let inventory = Inventory {
+            root: "/somewhere".to_owned(),
+            disabled_root: "/somewhere/disabled".to_owned(),
+            entries: vec![
+                entry("gain-invert", Slot::Enabled, Some(manifest("Gain"))),
+                entry("hostile-abi", Slot::Disabled, None),
+            ],
+            ignored: vec!["notes.txt".to_owned()],
+        };
+        let text = listing(&inventory);
+        // Both slots are named, and the count is of what is in that slot.
+        assert!(text.contains("Enabled (1)"), "{text}");
+        assert!(text.contains("Turned off (1)"), "{text}");
+        // The name the manifest gives is shown with the directory beside it.
+        assert!(text.contains("  Gain   (gain-invert)   v0.1.0\n"), "{text}");
+        // One that cannot be read is still listed, and says so.
+        assert!(
+            text.contains("  hostile-abi   (manifest cannot be read)\n"),
+            "{text}"
+        );
+        assert!(text.contains("Not extensions (1)"), "{text}");
+        assert!(text.contains("  notes.txt\n"), "{text}");
+    }
+
+    #[test]
+    fn an_empty_slot_is_not_headed() {
+        let inventory = Inventory {
+            root: "/somewhere".to_owned(),
+            disabled_root: "/somewhere/disabled".to_owned(),
+            entries: vec![entry("gain-invert", Slot::Enabled, Some(manifest("Gain")))],
+            ignored: Vec::new(),
+        };
+        let text = listing(&inventory);
+        assert!(text.contains("Enabled (1)"), "{text}");
+        assert!(!text.contains("Turned off"), "{text}");
+        assert!(!text.contains("Not extensions"), "{text}");
+    }
+
+    #[test]
+    fn no_arguments_at_all_asks_for_the_listing() {
+        let request = parse(&arguments(&["--root", "/somewhere"])).expect("parsed");
+        let Request::List(root) = request else {
+            panic!("not a listing");
+        };
+        assert_eq!(root, PathBuf::from("/somewhere"));
+    }
+
+    #[test]
+    fn the_root_can_be_printed_without_reading_anything() {
         let request = parse(&arguments(&["--root", "/somewhere", "--print-root"])).expect("parsed");
         let Request::PrintRoot(root) = request else {
             panic!("not a print");
@@ -242,25 +279,9 @@ mod tests {
     }
 
     #[test]
-    fn a_missing_value_is_a_usage_error() {
+    fn a_missing_root_value_is_a_usage_error() {
         assert!(matches!(
             parse(&arguments(&["--root"])),
-            Err(Fault::Usage(_))
-        ));
-        assert!(matches!(
-            parse(&arguments(&["--port"])),
-            Err(Fault::Usage(_))
-        ));
-    }
-
-    #[test]
-    fn a_port_that_is_not_a_number_is_a_usage_error() {
-        assert!(matches!(
-            parse(&arguments(&["--port", "http"])),
-            Err(Fault::Usage(_))
-        ));
-        assert!(matches!(
-            parse(&arguments(&["--port", "70000"])),
             Err(Fault::Usage(_))
         ));
     }
