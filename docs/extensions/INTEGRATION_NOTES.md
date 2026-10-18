@@ -112,7 +112,12 @@ or a caller who asked for something impossible, leaves the instance usable.
   it fails when it should.
 - gain-invert end to end on a real WAV, through both the host's tests and the
   CLI, against references worked out in the tests at 1e-6, at several channel
-  counts and at block sizes of 1, 64, 4096 and 65536 frames.
+  counts and at block sizes of 1, 64, 4096 and 65536 frames. It was also checked
+  once by hand, against a reference computed outside the repository - the input
+  WAV and the expected samples built by a separate script from the manifest's
+  own words - where 0 dB reproduced the input (1.5e-08), +6 dB matched
+  10^(6/20) after the slew (8.3e-08), the polarity flip matched to the sign, and
+  a 16-bit input came back as the same samples under one scale factor.
 
 Those tests now run in CI on Linux too, on a platform other than the one this
 was written on: the `Rust Tests` job installs the `wasm32-wasip1` target and
