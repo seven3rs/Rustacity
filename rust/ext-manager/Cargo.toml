@@ -1,0 +1,32 @@
+# Rustacity: A Digital Audio Editor
+# Copyright (C) 2026 Sadik Pranto
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# The extension manager.  It owns the extensions directory - saying what is
+# installed, turning one on or off, and asking the host whether one still
+# loads - and serves the small browser interface that drives it.  The interface
+# itself is rust/ext-manager-ui, which builds to WebAssembly; this crate has no
+# GUI dependency at all, so it builds, runs and tests like any other host tool.
+
+[package]
+name = "rustacity-ext-manager"
+version = "0.5.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+description = "Lists and manages the extensions installed for Rustacity, with a browser interface"
+publish = false
+
+[lib]
+name = "rustacity_ext_manager"
+path = "src/lib.rs"
+
+[[bin]]
+name = "rustacity-ext-manager"
+path = "src/main.rs"
+
+[dependencies]
+rustacity-ext-api = { path = "../ext-api" }
+rustacity-ext-host = { path = "../ext-host" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
