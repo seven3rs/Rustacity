@@ -1462,8 +1462,12 @@ add_custom_command(
    VERBATIM
 )
 
+# Both libraries come out of the one build, so both targets depend on the
+# first of them.  The Visual Studio generator turns a custom command with
+# two outputs into one rule per output, and a target that depends on the
+# second output's rule would ask cargo to do the same work a second time.
 add_custom_target( rustacity_dsp DEPENDS "${RUST_DSP_LIB}" )
-add_custom_target( rustacity_ext_host DEPENDS "${RUST_EXT_HOST_LIB}" )
+add_custom_target( rustacity_ext_host DEPENDS "${RUST_DSP_LIB}" )
 add_dependencies( ${TARGET} rustacity_dsp rustacity_ext_host )
 
 target_sources( ${TARGET} PRIVATE ${HEADERS} ${SOURCES} ${RESOURCES} ${MAC_RESOURCES} ${WIN_RESOURCES} )
