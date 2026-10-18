@@ -37,14 +37,16 @@ cd rust
 cargo test --workspace
 ```
 
-Before pushing, run the two checks CI runs first:
+Before pushing, run the checks CI runs first:
 
 ```sh
 cargo test --workspace             # unit tests and the golden-value tests
 python3 scripts/check_dsp_abi.py   # header and exports must agree
+python3 scripts/check_ext_abi.py   # extension header and FFI must agree
 ```
 
-CI then captures golden values and builds the whole application on four
+CI then captures golden values, builds the extension crates and every example
+extension for `wasm32-wasip1`, and builds the whole application on three
 platforms; expect a run to take about twenty minutes.
 
 ## Making a change
@@ -52,8 +54,12 @@ platforms; expect a run to take about twenty minutes.
 * Small commits, one area each, written in the imperative mood. The
   `docs:`/`fix:`/`chore:` prefixes in the log are only a convention; the
   size of a commit is not, because a reviewable commit is one idea.
-* Zero compiler warnings is the bar. `cargo fmt` is not enforced and clippy is
-  not run in CI, so match the surrounding code by hand.
+* Zero compiler warnings is the bar. `rust/dsp` is not held to clippy or to
+  rustfmt — it carries lints from before the extension work — so match the code
+  around you by hand there. The extension crates are held to both in CI:
+  `cargo clippy --all-targets -- -D warnings` and `cargo fmt --check` over
+  `rustacity-ext-api`, `rustacity-ext-host` and `rustacity-ext-cli`, and the
+  same two gates over `rust/extensions` for `wasm32-wasip1`.
 * **A port is not finished until the C++ implementation is deleted.** Capture
   the reference values while the C++ still exists - the loop is in
   [docs/goldens.md](docs/goldens.md) - and say so in the commit message when a
@@ -64,13 +70,33 @@ platforms; expect a run to take about twenty minutes.
   and by opening a pull request you agree to license your work under the same
   terms as the rest of the project ([LICENSE.txt](LICENSE.txt)).
 
+## Writing an extension
+
+An extension is a directory of its own, so it needs neither this tree nor a C++
+compiler:
+
+```sh
+rustup target add wasm32-wasip1
+cp -r rust/extensions/template my-effect
+# write my-effect/extension.toml and my-effect/src/lib.rs
+cargo build --release --target wasm32-wasip1 --manifest-path my-effect/Cargo.toml
+```
+
+[docs/extensions/WRITING_AN_EXTENSION.md](docs/extensions/WRITING_AN_EXTENSION.md)
+walks through it, [docs/extensions/API.md](docs/extensions/API.md) is the
+contract, and `rust/extensions/gain-invert` is a finished one to read. To have
+an extension built and tested by this tree, add a line to
+`rust/extensions/variants.txt`: the build script and the host's own test
+fixtures both read that file, so they cannot disagree about what a variant is.
+
 ## Reporting a bug
 
-Open an issue with what you did, what happened, what you expected instead, the
-version from *Help > About*, and your platform. A minimal project file or a
-short recording is worth more than a description. For a security problem, use
-the *Report a vulnerability* form under this repository's Security tab rather
-than a public issue.
+Open an issue — the [bug report template](.github/ISSUE_TEMPLATE/bug_report.md)
+asks for what is needed — with what you did, what happened, what you expected
+instead, the version from *Help > About*, and your platform. A minimal project
+file or a short recording is worth more than a description. For a security
+problem, [SECURITY.md](SECURITY.md) says how to report it privately rather than
+in a public issue.
 
 Unacceptable behaviour is a different matter, and is covered by
 [CODE_OF_CONDUCT.md](CODE_OF_CONDUCT.md).
