@@ -131,9 +131,9 @@ $ rust/target/release/rustacity-ext-cli rust/extensions/dist/hostile-wasi \
 44100 frame(s), 11 call(s) -> /tmp/wasi.wav ('Hostile (test fixture)' 0.1.0)
 ```
 
-(The same block of messages is written once per call, eleven times; it is
-elided here.) The full table of ten misbehaviours and what the sandbox did about
-each is in [`docs/extensions/SANDBOX.md`](../docs/extensions/SANDBOX.md).
+(The messages repeat once per call, eleven times, and only some of them are
+shown.) The full table of ten misbehaviours and what the sandbox did about each
+is in [`docs/extensions/SANDBOX.md`](../docs/extensions/SANDBOX.md).
 
 A parameter outside its range is refused before the extension sees it, never
 clamped:

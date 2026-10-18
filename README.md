@@ -81,13 +81,16 @@ $ echo $?
 ```
 
 An extension that goes looking for files, environment, arguments and sockets
-finds nothing, and says so in its own log:
+finds nothing, and says so in its own log. This is one call of that fixture with
+some of its attempts left out; it names every path, argument and socket it cannot
+reach, on every call, and the socket error's wording is the platform's:
 
 ```
 $ rust/target/release/rustacity-ext-cli rust/extensions/dist/hostile-wasi \
       examples/sine-sweep.wav /tmp/wasi.wav --verbose
 [info] /etc/passwd: No such file or directory (os error 44)
 [info] /etc/shadow: No such file or directory (os error 44)
+[...]
 [info] 0 arguments
 [info] connect: operation not supported on this platform
 [warn] obtained 0 bytes it should not have
