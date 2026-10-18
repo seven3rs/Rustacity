@@ -1,0 +1,16 @@
+[package]
+name = "rustacity-ext-cli"
+version = "0.5.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+description = "Runs a Rustacity extension over a WAV file, without the editor"
+publish = false
+
+[[bin]]
+name = "rustacity-ext-cli"
+path = "src/main.rs"
+
+[dependencies]
+rustacity-ext-api = { path = "../ext-api" }
+rustacity-ext-host = { path = "../ext-host" }
+hound = "3.5"

@@ -3,7 +3,7 @@
 # Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
 
 [workspace]
-members = ["dsp", "ext-api"]
+members = ["dsp", "ext-api", "ext-host", "ext-cli"]
 # The extensions themselves are WebAssembly modules, not parts of the host:
 # they build for wasm32-wasip1 with their own profile and are never linked
 # into the application, so they stand outside this workspace and are built

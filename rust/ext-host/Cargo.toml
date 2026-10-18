@@ -1,0 +1,32 @@
+[package]
+name = "rustacity-ext-host"
+version = "0.5.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+description = "Sandboxed WebAssembly extension host of Rustacity: the manifest, the engine, the instances and the C ABI"
+publish = false
+
+[lib]
+name = "rustacity_ext"
+# "staticlib" is what the C++ application links; "rlib" is what the tests and
+# the command-line tool build against.
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+rustacity-ext-api = { path = "../ext-api" }
+# Pinned: the ABI of the host's C surface is ours, but the runtime under it
+# moves, and an engine upgrade should be a deliberate act with the tests run.
+#
+# The feature set is the engine plus the compiler, and nothing else: no module
+# cache (which would drag in a C compiler for zstd), no component model beyond
+# what the WASI preview 1 adapter needs, no async, no pooling allocator. The
+# sandbox does not want the knobs it does not turn.
+wasmtime = { version = "49.0.3", default-features = false, features = [
+    "cranelift",
+    "runtime",
+    "std",
+] }
+wasmtime-wasi = { version = "49.0.3", default-features = false, features = [
+    "p1",
+] }
+thiserror = "2"
