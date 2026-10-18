@@ -98,7 +98,7 @@ C++ printed, to a tolerance, on one platform" is the whole claim.
 
 ### "How much of the app is actually Rust?"
 
-Very little, by any measure. Around 16,800 lines in `rust/` against ~298,000
+Very little, by any measure. Around 16,800 lines in `rust/` against ~297,000
 lines of C++ in `src/`, and GitHub's own byte count puts Rust at under one
 percent, because `lib-src/` is most of the bytes. The honest measure of progress
 is the eight units in `docs/port-status.md`, not a percentage.

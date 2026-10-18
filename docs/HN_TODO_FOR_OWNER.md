@@ -24,14 +24,14 @@ worth doing before the branch is merged, the second before anything is posted.
       file byte for byte, with the fork recorded in `NOTICE`. If it still says
       `NOASSERTION`, the reason is somewhere else and I would like to know.
 - [ ] **Decide the "v2 only or v2 or later" question.** `NOTICE`, `README.md`
-      and the three `Cargo.toml` files say GPL-2.0-or-later; upstream's notice
-      says "GNU GPL Version 2", and Debian treats Audacity as `GPL-2+`. If you
-      want it strictly v2, that is one word in four places. I am not a lawyer and
-      did not change the licence text.
+      and the three `Cargo.toml` files say GPL-2.0-or-later; the notice kept in
+      upstream's `LICENSE.txt` says "GNU GPL Version 2". Either reading can be
+      argued, so it is yours to settle — and it is one word in four places. I am
+      not a lawyer and did not change the licence text.
 - [ ] **Turn on private vulnerability reporting** (repository Settings → Security)
       if you want `SECURITY.md` to be able to send people to the *Report a
       vulnerability* form. If not, `SECURITY.md` lists the email address that is
-      already in 18 files in this tree; edit it if you would rather not use it.
+      already in 19 files in this tree; edit it if you would rather not use it.
 - [ ] **Check the new `cli` job's first real run.** It is not tag-only, so the
       push that lands this branch exercises everything except the release
       mapping: it builds the CLI and the twelve extensions, runs the quick start
@@ -113,5 +113,5 @@ worth doing before the branch is merged, the second before anything is posted.
 
 No secrets in the tree, no committed build output, no file over 1 MB, no
 `README.txt` duplication, no dead CI files, no second front page, no telemetry
-and no network client at all, and the four workflow triggers are unchanged. The
+and no network client at all, and the workflow's three triggers are unchanged. The
 full detail, with the commands, is `docs/HN_AUDIT.md` §4.

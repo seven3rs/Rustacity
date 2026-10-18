@@ -18,8 +18,8 @@ tree (`git merge-base --is-ancestor Audacity-2.4.1 HEAD` exits 0), so the fork
 point is exact: **130 commits** have been made since it, touching 1347 files
 (`+42,238 / -194,308`).
 
-**The application is the upstream C++ tree.** `src/` is 795 C++ files and about
-298,000 lines, and it owns the wxWidgets interface, the project and track model,
+**The application is the upstream C++ tree.** `src/` is 793 C++ files and about
+297,000 lines, and it owns the wxWidgets interface, the project and track model,
 the file formats and every effect dialog. It is not being rewritten; the maths
 is being moved out of it, one unit at a time (`docs/architecture.md`).
 
@@ -210,7 +210,7 @@ benchmark, and no performance claim is made anywhere in this branch.
 | fork point | the `Audacity-2.4.1` tag, an ancestor of the current tree |
 | commits since | 130 |
 | files changed since | 1347 (`+42,238 / -194,308`) |
-| the application | `src/`, 795 C++ files, about 298,000 lines — upstream's |
+| the application | `src/`, 793 C++ files (386 `.cpp` and 407 `.h`), about 297,000 lines — upstream's |
 | the Rust workspace | 60 files, 16,788 lines, of which `rust/dsp/src` is 10 files and 5,387 lines |
 | the one new effect | `src/effects/Extension.h` (103 lines) and `Extension.cpp` (309 lines) |
 | GitHub's byte count | Rust is about 0.8% of the tree it counts (440 KB of 54 MB), because `lib-src/` and the vendored C are most of the bytes — the honest measure of progress is `docs/port-status.md` |
