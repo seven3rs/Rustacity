@@ -96,6 +96,13 @@ TranslatableString ReasonOrFallback(const wxString &message)
 
 }
 
+// EffectExtension static data
+
+// C++14 has no inline variables: a static constexpr data member is only a
+// declaration until something binds a reference to it, which std::min in
+// SetBlockSize does, so the definition belongs here.
+constexpr size_t EffectExtension::MaximumBlockFrames;
+
 EffectExtension::EffectExtension(const std::string &directory)
    : mDirectory(directory)
 {
