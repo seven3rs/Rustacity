@@ -84,6 +84,16 @@ wxString LastError()
    return message ? wxString::FromUTF8(message) : wxString{};
 }
 
+// The host's message is a runtime string, not a translatable one.  It sets a
+// message before every failure it reports, so the fallback should be
+// unreachable; it is here so that a message box is never empty.
+TranslatableString ReasonOrFallback(const wxString &message)
+{
+   return message.empty()
+      ? XO("The extension reported a failure without saying why.")
+      : Verbatim(message);
+}
+
 }
 
 EffectExtension::EffectExtension(const std::string &directory)
@@ -177,9 +187,10 @@ size_t EffectExtension::SetBlockSize(size_t maxBlockSize)
 {
    // The module ABI caps a call at MaximumBlockFrames, and an instance is
    // told the largest block it will be given when it is created, so this is
-   // where the framework's preference meets that limit.
-   mBlockSize = std::min(maxBlockSize, MaximumBlockFrames);
-   return mBlockSize;
+   // where the framework's preference meets that limit.  The agreed size is
+   // private to Effect, so the smaller value is handed to the base class
+   // rather than assigned here.
+   return Effect::SetBlockSize(std::min(maxBlockSize, MaximumBlockFrames));
 }
 
 size_t EffectExtension::ProcessBlock(float **inBlock, float **outBlock, size_t blockLen)
@@ -206,7 +217,7 @@ size_t EffectExtension::ProcessBlock(float **inBlock, float **outBlock, size_t b
    if (rustacity_ext_instance_process(
           mInstance, inputs, outputs, 1, static_cast<int>(blockLen)) != RUSTACITY_EXT_OK)
    {
-      Fail(LastError());
+      Fail(ReasonOrFallback(LastError()));
       return 0;
    }
 
@@ -225,7 +236,7 @@ bool EffectExtension::Process()
 
    if (!Loaded())
    {
-      Fail(mError);
+      Fail(ReasonOrFallback(mError));
       return false;
    }
 
@@ -247,22 +258,23 @@ bool EffectExtension::ProcessPass()
 bool EffectExtension::StartInstance()
 {
    const auto rate = static_cast<float>(mSampleRate);
-   if (mInstance && (mInstanceRate != rate || mInstanceBlock != mBlockSize))
+   const auto block = GetBlockSize();
+   if (mInstance && (mInstanceRate != rate || mInstanceBlock != block))
       StopInstance();
 
    if (mInstance)
       return true;
 
    if (rustacity_ext_instance_create(
-          mExtension, rate, static_cast<int>(mBlockSize), 1, &mInstance) != RUSTACITY_EXT_OK)
+          mExtension, rate, static_cast<int>(block), 1, &mInstance) != RUSTACITY_EXT_OK)
    {
       mInstance = nullptr;
-      Fail(LastError());
+      Fail(ReasonOrFallback(LastError()));
       return false;
    }
 
    mInstanceRate = rate;
-   mInstanceBlock = mBlockSize;
+   mInstanceBlock = block;
    return true;
 }
 
@@ -277,15 +289,14 @@ void EffectExtension::StopInstance()
    }
 }
 
-void EffectExtension::Fail(const wxString &reason)
+void EffectExtension::Fail(const TranslatableString &reason)
 {
    if (mFailed)
       return;
 
    mFailed = true;
-   MessageBox(
-      Verbatim(reason.empty()
-         ? XO("The extension could not finish this effect.").Translation()
-         : reason),
-      wxOK | wxICON_ERROR);
+
+   // A reason this file provides is already translatable; one the host
+   // provides is a runtime string and arrives through ReasonOrFallback().
+   MessageBox(reason, wxOK | wxICON_ERROR);
 }

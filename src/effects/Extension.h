@@ -85,7 +85,7 @@ private:
    // ProcessPass report it: what the framework does with a failure is
    // discard the output, which is what the API promises an extension that
    // traps or times out.
-   void Fail(const wxString &reason);
+   void Fail(const TranslatableString &reason);
 
    std::string mDirectory;
    wxString mIdentifier;
