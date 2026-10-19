@@ -1,0 +1,773 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rustacity — Audio editing, forged in Rust</title>
+<meta name="description" content="Rustacity is a fork of Audacity 2.4.1 with a memory-safe Rust audio core and a sandboxed WebAssembly extension engine.">
+<meta name="theme-color" content="#1E2327">
+<meta name="color-scheme" content="dark">
+
+<meta property="og:type" content="website">
+<meta property="og:title" content="Rustacity — Audio editing, forged in Rust">
+<meta property="og:description" content="An Audacity 2.4.1 fork with a memory-safe Rust DSP core and a sandboxed WebAssembly extension engine.">
+<meta property="og:url" content="https://prantosmss.github.io/Rustacity/">
+<meta property="og:image" content="https://raw.githubusercontent.com/prantosmss/Rustacity/main/images/brand/rustacity-logo-dark.svg">
+<meta name="twitter:card" content="summary_large_image">
+
+<link rel="icon" href="data:image/svg+xml,%3Csvg%20xmlns='http://www.w3.org/2000/svg'%20viewBox='0%200%2032%2032'%3E%3Crect%20width='32'%20height='32'%20rx='7'%20fill='%231E2327'/%3E%3Ccircle%20cx='16'%20cy='16'%20r='9.6'%20fill='none'%20stroke='%23D9481F'%20stroke-width='2.6'/%3E%3Cg%20fill='%23F5E9DD'%3E%3Crect%20x='9.8'%20y='13'%20width='1.7'%20height='6'%20rx='.85'/%3E%3Crect%20x='13.1'%20y='10.6'%20width='1.7'%20height='10.8'%20rx='.85'/%3E%3Crect%20x='16.4'%20y='9.2'%20width='1.7'%20height='13.6'%20rx='.85'%20fill='%23F4733A'/%3E%3Crect%20x='19.7'%20y='11.4'%20width='1.7'%20height='9.2'%20rx='.85'/%3E%3C/g%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+  :root{
+    --bg:#1E2327;
+    --bg-deep:#14181B;
+    --panel:#232A2F;
+    --panel-2:#1A1F23;
+    --line:#3A444A;
+    --line-soft:#2B3237;
+    --rust:#D9481F;
+    --ember:#F4733A;
+    --cream:#F5E9DD;
+    --muted:#9AA4AB;
+    --muted-2:#6B757C;
+    --radius:16px;
+    --maxw:1120px;
+    --mono:"JetBrains Mono",ui-monospace,SFMono-Regular,Menlo,Consolas,monospace;
+  }
+
+  *{box-sizing:border-box}
+  html{scroll-behavior:smooth}
+  @media (prefers-reduced-motion: reduce){ html{scroll-behavior:auto} }
+
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 640px at 78% -8%, rgba(217,72,31,.16), transparent 60%),
+      radial-gradient(900px 520px at 8% 4%, rgba(244,115,58,.08), transparent 55%),
+      var(--bg-deep);
+    color:var(--cream);
+    font-family:Inter,-apple-system,BlinkMacSystemFont,"Segoe UI",Helvetica,Arial,sans-serif;
+    font-size:17px;
+    line-height:1.65;
+    -webkit-font-smoothing:antialiased;
+    text-rendering:optimizeLegibility;
+  }
+  body::before{
+    content:"";
+    position:fixed; inset:0; pointer-events:none; z-index:0;
+    background-image:linear-gradient(rgba(255,255,255,.022) 1px,transparent 1px),
+                     linear-gradient(90deg,rgba(255,255,255,.022) 1px,transparent 1px);
+    background-size:56px 56px;
+    mask-image:radial-gradient(80% 60% at 50% 0%,#000 0%,transparent 78%);
+    -webkit-mask-image:radial-gradient(80% 60% at 50% 0%,#000 0%,transparent 78%);
+  }
+
+  a{color:inherit;text-decoration:none}
+  h1,h2,h3{line-height:1.15;margin:0;letter-spacing:-.02em}
+  p{margin:0}
+  code{font-family:var(--mono)}
+
+  .wrap{width:100%;max-width:var(--maxw);margin:0 auto;padding:0 24px}
+  section{position:relative;z-index:1}
+
+  .skip{
+    position:absolute;left:-999px;top:0;z-index:100;
+    background:var(--ember);color:#1a1005;padding:10px 16px;border-radius:0 0 10px 0;font-weight:700;
+  }
+  .skip:focus{left:0}
+
+  /* ---------- Nav ---------- */
+  .nav{
+    position:sticky;top:0;z-index:50;
+    background:rgba(20,24,27,.72);
+    backdrop-filter:saturate(160%) blur(14px);
+    -webkit-backdrop-filter:saturate(160%) blur(14px);
+    border-bottom:1px solid var(--line-soft);
+  }
+  .nav-inner{display:flex;align-items:center;gap:14px;height:68px}
+  .brand{display:flex;align-items:center;gap:11px;font-weight:800;font-size:19px;letter-spacing:-.01em}
+  .brand svg{width:30px;height:30px;display:block}
+  .brand span{color:var(--ember)}
+  .nav-links{display:flex;gap:2px;margin-left:auto;align-items:center}
+  .nav-links a{
+    color:var(--muted);font-size:14.5px;font-weight:500;padding:9px 12px;border-radius:9px;
+    transition:color .18s, background .18s;
+  }
+  .nav-links a:hover{color:var(--cream);background:rgba(245,233,221,.06)}
+  .nav-cta{
+    display:inline-flex;align-items:center;gap:8px;
+    background:var(--cream);color:#171b1e !important;
+    font-weight:700 !important;padding:9px 15px !important;border-radius:10px !important;
+    transition:transform .18s, box-shadow .18s !important;
+  }
+  .nav-cta:hover{transform:translateY(-1px);box-shadow:0 8px 22px rgba(245,233,221,.14)}
+  @media (max-width:820px){ .nav-links .hide-sm{display:none} }
+  @media (max-width:520px){ .nav-links a:not(.nav-cta):not(.keep){display:none} }
+
+  /* ---------- Hero ---------- */
+  .hero{padding:76px 0 60px;overflow:hidden}
+  .hero-grid{display:grid;grid-template-columns:1.15fr .85fr;gap:56px;align-items:center}
+  @media (max-width:900px){ .hero-grid{grid-template-columns:1fr;gap:36px} }
+
+  .eyebrow{
+    display:inline-flex;align-items:center;gap:9px;
+    font-size:13px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;
+    color:var(--muted);
+    border:1px solid var(--line);border-radius:999px;padding:7px 14px;background:rgba(245,233,221,.03);
+  }
+  .eyebrow .dot{width:7px;height:7px;border-radius:50%;background:var(--ember);box-shadow:0 0 0 4px rgba(244,115,58,.16)}
+
+  .hero h1{
+    font-size:clamp(46px,8vw,82px);
+    font-weight:900;
+    letter-spacing:-.045em;
+    margin:22px 0 6px;
+    background:linear-gradient(180deg,var(--cream) 30%,#E7C7B2 100%);
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .tagline{
+    font-size:clamp(19px,2.6vw,25px);font-weight:600;color:var(--ember);
+    letter-spacing:-.01em;margin-bottom:18px;
+  }
+  .lede{color:var(--muted);font-size:18px;max-width:56ch}
+  .lede strong{color:var(--cream);font-weight:600}
+
+  .cta-row{display:flex;flex-wrap:wrap;gap:13px;margin-top:30px}
+  .btn{
+    display:inline-flex;align-items:center;gap:9px;
+    font-weight:700;font-size:15.5px;padding:13px 21px;border-radius:12px;
+    transition:transform .18s, box-shadow .18s, background .18s, border-color .18s;
+    border:1px solid transparent;cursor:pointer;
+  }
+  .btn svg{width:17px;height:17px}
+  .btn-primary{
+    background:linear-gradient(135deg,var(--ember),var(--rust));
+    color:#1a1005;
+    box-shadow:0 10px 26px rgba(217,72,31,.3);
+  }
+  .btn-primary:hover{transform:translateY(-2px);box-shadow:0 16px 34px rgba(217,72,31,.4)}
+  .btn-ghost{border-color:var(--line);color:var(--cream);background:rgba(245,233,221,.03)}
+  .btn-ghost:hover{transform:translateY(-2px);border-color:var(--muted-2);background:rgba(245,233,221,.07)}
+
+  .badges{display:flex;flex-wrap:wrap;gap:8px;margin-top:30px}
+  .badge{
+    font-size:12.5px;font-weight:600;color:var(--muted);
+    border:1px solid var(--line-soft);border-radius:999px;padding:5px 12px;background:rgba(20,24,27,.5);
+  }
+  .badge b{color:var(--cream);font-weight:700}
+
+  /* ---------- Hero art ---------- */
+  .art{display:flex;justify-content:center;align-items:center;position:relative}
+  .art::after{
+    content:"";position:absolute;width:min(420px,80%);aspect-ratio:1;border-radius:50%;
+    background:radial-gradient(circle,rgba(217,72,31,.22),transparent 62%);
+    filter:blur(6px);z-index:-1;
+  }
+  .art svg{width:min(360px,78vw);height:auto;filter:drop-shadow(0 24px 60px rgba(217,72,31,.22))}
+  .cog{transform-origin:256px 256px;animation:spin 60s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  @media (prefers-reduced-motion: reduce){ .cog{animation:none} }
+
+  /* ---------- Bars / dividers ---------- */
+  .wave-divider{display:flex;justify-content:center;gap:7px;align-items:center;height:44px;margin:0 auto}
+  .wave-divider i{
+    width:6px;border-radius:4px;background:var(--line);height:var(--h,14px);display:block;
+  }
+  .wave-divider i.hot{background:var(--rust)}
+
+  /* ---------- Generic section ---------- */
+  .section{padding:76px 0}
+  .section-head{max-width:62ch;margin-bottom:44px}
+  .kicker{
+    font-size:13px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted-2);
+    display:block;margin-bottom:14px;
+  }
+  .section h2{font-size:clamp(30px,4.4vw,44px);font-weight:800;letter-spacing:-.03em}
+  .section-head p{color:var(--muted);margin-top:16px;font-size:17.5px}
+
+  .grid{display:grid;gap:18px}
+  .g2{grid-template-columns:repeat(2,1fr)}
+  .g3{grid-template-columns:repeat(3,1fr)}
+  @media (max-width:900px){ .g3{grid-template-columns:1fr} .g2{grid-template-columns:1fr} }
+
+  .card{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line-soft);border-radius:var(--radius);
+    padding:26px;position:relative;overflow:hidden;
+    transition:transform .2s, border-color .2s, box-shadow .2s;
+  }
+  .card::before{
+    content:"";position:absolute;inset:0 auto auto 0;width:100%;height:2px;
+    background:linear-gradient(90deg,var(--rust),var(--ember),transparent);
+    opacity:.6;
+  }
+  .card:hover{transform:translateY(-3px);border-color:var(--line);box-shadow:0 18px 40px rgba(0,0,0,.34)}
+  .card h3{font-size:19px;font-weight:700;margin-bottom:10px;display:flex;align-items:center;gap:10px}
+  .card p{color:var(--muted);font-size:15.5px}
+  .card .ic{
+    width:38px;height:38px;border-radius:11px;display:grid;place-items:center;flex:0 0 auto;
+    background:rgba(217,72,31,.14);border:1px solid rgba(217,72,31,.3);
+  }
+  .card .ic svg{width:20px;height:20px;stroke:var(--ember);fill:none;stroke-width:1.8}
+  .card ul{margin:12px 0 0;padding-left:18px;color:var(--muted);font-size:15px}
+  .card ul li{margin:6px 0}
+
+  /* ---------- Architecture diagram ---------- */
+  .flow{display:grid;grid-template-columns:1fr 1fr;gap:22px}
+  @media (max-width:860px){ .flow{grid-template-columns:1fr} }
+  .stack{
+    background:linear-gradient(180deg,var(--panel),var(--panel-2));
+    border:1px solid var(--line-soft);border-radius:var(--radius);padding:22px;
+  }
+  .stack h3{font-size:15px;letter-spacing:.02em;color:var(--cream);margin-bottom:16px;display:flex;gap:9px;align-items:center}
+  .stack h3 .tag{font-size:11px;font-weight:700;letter-spacing:.1em;color:var(--ember);text-transform:uppercase}
+  .node{
+    border:1px solid var(--line);border-radius:12px;padding:14px 16px;background:rgba(20,24,27,.55);
+  }
+  .node b{display:block;font-weight:700;font-size:15px}
+  .node small{color:var(--muted);font-size:13px;font-family:var(--mono)}
+  .arrow{display:flex;flex-direction:column;align-items:center;gap:2px;margin:12px 0;color:var(--muted-2)}
+  .arrow .lbl{font-size:12px;font-family:var(--mono);color:var(--muted)}
+  .arrow .bar{width:2px;height:20px;background:linear-gradient(var(--line),var(--ember))}
+
+  /* ---------- Status ---------- */
+  .status-list{display:grid;gap:10px}
+  .row{
+    display:grid;grid-template-columns:220px 1fr auto;gap:16px;align-items:center;
+    border:1px solid var(--line-soft);border-radius:12px;padding:15px 18px;background:rgba(20,24,27,.42);
+  }
+  @media (max-width:720px){ .row{grid-template-columns:1fr;gap:6px} }
+  .row .area{font-weight:600;color:var(--cream);font-size:15.5px}
+  .row .state{color:var(--muted);font-size:15px}
+  .pill{font-size:12px;font-weight:700;letter-spacing:.02em;border-radius:999px;padding:5px 12px;white-space:nowrap}
+  .pill.stable{color:#8fe0b0;background:rgba(80,200,140,.12);border:1px solid rgba(80,200,140,.3)}
+  .pill.wip{color:#ffcf8a;background:rgba(240,180,70,.12);border:1px solid rgba(240,180,70,.3)}
+  .pill.todo{color:#ffb3a0;background:rgba(217,72,31,.14);border:1px solid rgba(217,72,31,.34)}
+  .pill.muted{color:var(--muted);background:rgba(154,164,171,.1);border:1px solid var(--line)}
+
+  /* ---------- Code ---------- */
+  .code{
+    position:relative;background:#0F1316;border:1px solid var(--line-soft);border-radius:13px;
+    margin:0;overflow:hidden;
+  }
+  .code header{
+    display:flex;align-items:center;gap:8px;padding:10px 14px;border-bottom:1px solid var(--line-soft);
+    background:rgba(255,255,255,.02);font-size:12.5px;color:var(--muted);
+  }
+  .code header .dots{display:flex;gap:6px;margin-right:4px}
+  .code header .dots i{width:9px;height:9px;border-radius:50%;background:var(--line);display:block}
+  .code header .dots i.s{background:var(--ember)}
+  .code pre{margin:0;padding:16px 18px;overflow-x:auto;font-family:var(--mono);font-size:13.5px;line-height:1.7;color:#D6DEE3}
+  .copy{
+    margin-left:auto;background:transparent;border:1px solid var(--line);color:var(--muted);
+    font-family:inherit;font-size:12px;font-weight:600;padding:4px 10px;border-radius:7px;cursor:pointer;
+    transition:.16s;
+  }
+  .copy:hover{color:var(--cream);border-color:var(--muted-2)}
+  .cmt{color:var(--muted-2)}
+  .str{color:#E7A07A}
+  .kw{color:var(--ember)}
+
+  .build-grid{display:grid;grid-template-columns:1fr 1fr;gap:20px;align-items:start}
+  @media (max-width:860px){ .build-grid{grid-template-columns:1fr} }
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin:0 0 22px}
+  .chip{font-size:13px;color:var(--cream);border:1px solid var(--line);border-radius:9px;padding:6px 12px;background:rgba(20,24,27,.5)}
+  .chip.opt{color:var(--muted);border-style:dashed}
+
+  /* ---------- Docs grid ---------- */
+  .doc-card{
+    display:flex;flex-direction:column;gap:6px;
+    border:1px solid var(--line-soft);border-radius:13px;padding:20px;background:rgba(20,24,27,.4);
+    transition:transform .18s,border-color .18s,background .18s;
+  }
+  .doc-card:hover{transform:translateY(-2px);border-color:var(--line);background:rgba(35,42,47,.6)}
+  .doc-card b{font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .doc-card span{color:var(--muted);font-size:14px}
+  .doc-card .go{color:var(--ember);font-family:var(--mono);font-size:13px}
+
+  /* ---------- Footer ---------- */
+  footer{border-top:1px solid var(--line-soft);margin-top:40px;padding:44px 0 60px;position:relative;z-index:1}
+  .foot-grid{display:flex;flex-wrap:wrap;gap:28px;justify-content:space-between;align-items:flex-start}
+  .foot-brand{display:flex;align-items:center;gap:12px;font-weight:800}
+  .foot-brand svg{width:34px;height:34px}
+  .foot-links{display:flex;flex-wrap:wrap;gap:22px;color:var(--muted);font-size:14.5px}
+  .foot-links a:hover{color:var(--cream)}
+  .legal{margin-top:30px;color:var(--muted-2);font-size:13px;max-width:80ch}
+  .legal a{color:var(--muted);text-decoration:underline;text-decoration-color:var(--line)}
+
+  /* ---------- Reveal ---------- */
+  .reveal{opacity:0;transform:translateY(18px);transition:opacity .6s ease,transform .6s ease}
+  .reveal.in{opacity:1;transform:none}
+  @media (prefers-reduced-motion: reduce){ .reveal{opacity:1;transform:none;transition:none} }
+
+  :focus-visible{outline:2px solid var(--ember);outline-offset:3px;border-radius:6px}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Skip to content</a>
+
+<!-- ===== Nav ===== -->
+<header class="nav">
+  <div class="wrap nav-inner">
+    <a class="brand" href="#top" aria-label="Rustacity home">
+      <svg viewBox="0 0 512 512" aria-hidden="true" focusable="false">
+        <rect width="512" height="512" rx="112" fill="#1E2327"/>
+        <g transform="translate(256 256) scale(0.80) translate(-256 -256)">
+          <path d="M210.97,87.93 L231.48,83.74 L237.69,50.82 L274.31,50.82 L280.52,83.74 L301.03,87.93 L301.03,87.93 L320.90,94.56 L342.73,69.15 L374.45,87.46 L363.36,119.07 L379.04,132.96 L379.04,132.96 L392.93,148.64 L424.54,137.55 L442.85,169.27 L417.44,191.10 L424.07,210.97 L424.07,210.97 L428.26,231.48 L461.18,237.69 L461.18,274.31 L428.26,280.52 L424.07,301.03 L424.07,301.03 L417.44,320.90 L442.85,342.73 L424.54,374.45 L392.93,363.36 L379.04,379.04 L379.04,379.04 L363.36,392.93 L374.45,424.54 L342.73,442.85 L320.90,417.44 L301.03,424.07 L301.03,424.07 L280.52,428.26 L274.31,461.18 L237.69,461.18 L231.48,428.26 L210.97,424.07 L210.97,424.07 L191.10,417.44 L169.27,442.85 L137.55,424.54 L148.64,392.93 L132.96,379.04 L132.96,379.04 L119.07,363.36 L87.46,374.45 L69.15,342.73 L94.56,320.90 L87.93,301.03 L87.93,301.03 L83.74,280.52 L50.82,274.31 L50.82,237.69 L83.74,231.48 L87.93,210.97 L87.93,210.97 L94.56,191.10 L69.15,169.27 L87.46,137.55 L119.07,148.64 L132.96,132.96 L132.96,132.96 L148.64,119.07 L137.55,87.46 L169.27,69.15 L191.10,94.56 L210.97,87.93 Z M114,256 a142,142 0 1,0 284,0 a142,142 0 1,0 -284,0 Z" fill="#D9481F" fill-rule="evenodd"/>
+          <rect x="144.5" y="239" width="13" height="34" rx="6.5" fill="#F5E9DD"/>
+          <rect x="165.5" y="221" width="13" height="70" rx="6.5" fill="#F5E9DD"/>
+          <rect x="186.5" y="200" width="13" height="112" rx="6.5" fill="#F5E9DD"/>
+          <rect x="207.5" y="217" width="13" height="78" rx="6.5" fill="#F5E9DD"/>
+          <rect x="228.5" y="181" width="13" height="150" rx="6.5" fill="#F5E9DD"/>
+          <rect x="249.5" y="148" width="13" height="216" rx="6.5" fill="#F4733A"/>
+          <rect x="270.5" y="187" width="13" height="138" rx="6.5" fill="#F5E9DD"/>
+          <rect x="291.5" y="210" width="13" height="92" rx="6.5" fill="#F5E9DD"/>
+          <rect x="312.5" y="196" width="13" height="120" rx="6.5" fill="#F5E9DD"/>
+          <rect x="333.5" y="227" width="13" height="58" rx="6.5" fill="#F5E9DD"/>
+          <rect x="354.5" y="242" width="13" height="28" rx="6.5" fill="#F5E9DD"/>
+        </g>
+      </svg>
+      Rust<span>acity</span>
+    </a>
+    <nav class="nav-links" aria-label="Primary">
+      <a class="hide-sm" href="#why">Why</a>
+      <a class="hide-sm" href="#architecture">Architecture</a>
+      <a class="hide-sm" href="#extensions">Extensions</a>
+      <a class="hide-sm" href="#status">Status</a>
+      <a class="hide-sm" href="#docs">Docs</a>
+      <a class="nav-cta keep" href="https://github.com/prantosmss/Rustacity">
+        <svg viewBox="0 0 16 16" width="16" height="16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+        GitHub
+      </a>
+    </nav>
+  </div>
+</header>
+
+<main id="main">
+  <span id="top"></span>
+
+  <!-- ===== Hero ===== -->
+  <section class="hero">
+    <div class="wrap hero-grid">
+      <div>
+        <span class="eyebrow"><span class="dot"></span>A fork of Audacity 2.4.1</span>
+        <h1>Rustacity</h1>
+        <p class="tagline">Audio editing, forged in Rust.</p>
+        <p class="lede">
+          The Audacity editor you already know — multi-track, sample-accurate, scriptable — with
+          <strong>a memory-safe Rust audio core</strong> underneath and <strong>a sandboxed WebAssembly
+          extension engine</strong> beside it.
+        </p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="https://github.com/prantosmss/Rustacity">
+            <svg viewBox="0 0 16 16" fill="currentColor" aria-hidden="true"><path d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82a7.4 7.4 0 0 1 2-.27c.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.01 8.01 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg>
+            Get the code
+          </a>
+          <a class="btn btn-ghost" href="#build">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
+            Build from source
+          </a>
+        </div>
+        <div class="badges">
+          <span class="badge"><b>GPL-2.0</b> licensed</span>
+          <span class="badge">Windows · macOS · Linux</span>
+          <span class="badge"><b>Rust</b> DSP core</span>
+          <span class="badge"><b>WASM</b> extensions</span>
+        </div>
+      </div>
+
+      <div class="art" aria-hidden="true">
+        <svg viewBox="0 0 512 512" role="img">
+          <title>Rustacity mark</title>
+          <g class="cog">
+            <path d="M210.97,87.93 L231.48,83.74 L237.69,50.82 L274.31,50.82 L280.52,83.74 L301.03,87.93 L301.03,87.93 L320.90,94.56 L342.73,69.15 L374.45,87.46 L363.36,119.07 L379.04,132.96 L379.04,132.96 L392.93,148.64 L424.54,137.55 L442.85,169.27 L417.44,191.10 L424.07,210.97 L424.07,210.97 L428.26,231.48 L461.18,237.69 L461.18,274.31 L428.26,280.52 L424.07,301.03 L424.07,301.03 L417.44,320.90 L442.85,342.73 L424.54,374.45 L392.93,363.36 L379.04,379.04 L379.04,379.04 L363.36,392.93 L374.45,424.54 L342.73,442.85 L320.90,417.44 L301.03,424.07 L301.03,424.07 L280.52,428.26 L274.31,461.18 L237.69,461.18 L231.48,428.26 L210.97,424.07 L210.97,424.07 L191.10,417.44 L169.27,442.85 L137.55,424.54 L148.64,392.93 L132.96,379.04 L132.96,379.04 L119.07,363.36 L87.46,374.45 L69.15,342.73 L94.56,320.90 L87.93,301.03 L87.93,301.03 L83.74,280.52 L50.82,274.31 L50.82,237.69 L83.74,231.48 L87.93,210.97 L87.93,210.97 L94.56,191.10 L69.15,169.27 L87.46,137.55 L119.07,148.64 L132.96,132.96 L132.96,132.96 L148.64,119.07 L137.55,87.46 L169.27,69.15 L191.10,94.56 L210.97,87.93 Z M114,256 a142,142 0 1,0 284,0 a142,142 0 1,0 -284,0 Z" fill="#D9481F" fill-rule="evenodd"/>
+          </g>
+          <g transform="translate(256 256) scale(0.94) translate(-256 -256)">
+            <rect x="144.5" y="239" width="13" height="34" rx="6.5" fill="#F5E9DD"/>
+            <rect x="165.5" y="221" width="13" height="70" rx="6.5" fill="#F5E9DD"/>
+            <rect x="186.5" y="200" width="13" height="112" rx="6.5" fill="#F5E9DD"/>
+            <rect x="207.5" y="217" width="13" height="78" rx="6.5" fill="#F5E9DD"/>
+            <rect x="228.5" y="181" width="13" height="150" rx="6.5" fill="#F5E9DD"/>
+            <rect x="249.5" y="148" width="13" height="216" rx="6.5" fill="#F4733A"/>
+            <rect x="270.5" y="187" width="13" height="138" rx="6.5" fill="#F5E9DD"/>
+            <rect x="291.5" y="210" width="13" height="92" rx="6.5" fill="#F5E9DD"/>
+            <rect x="312.5" y="196" width="13" height="120" rx="6.5" fill="#F5E9DD"/>
+            <rect x="333.5" y="227" width="13" height="58" rx="6.5" fill="#F5E9DD"/>
+            <rect x="354.5" y="242" width="13" height="28" rx="6.5" fill="#F5E9DD"/>
+          </g>
+        </svg>
+      </div>
+    </div>
+
+    <div class="wrap">
+      <div class="wave-divider" aria-hidden="true" id="heroWave"></div>
+    </div>
+  </section>
+
+  <!-- ===== Why ===== -->
+  <section class="section" id="why">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Why this fork</span>
+        <h2>Two things Audacity does not do — added underneath it.</h2>
+        <p>Rustacity keeps the editor intact and changes what runs beneath it: new audio code is written in Rust, and third-party code runs in a sandbox instead of on your machine.</p>
+      </div>
+
+      <div class="grid g2">
+        <div class="card reveal">
+          <h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 2 3 7v10l9 5 9-5V7z"/><path d="m3 7 9 5 9-5M12 12v10"/></svg></span>New audio code is Rust</h3>
+          <p>Signal processing moves out of legacy C++ into the <code>rustacity-dsp</code> crate, behind a small C interface. It is tested on its own with <code>cargo test</code> and needs no C++ toolchain to work on.</p>
+          <ul>
+            <li>Memory-safe DSP, ported unit by unit</li>
+            <li>Every ported routine checked against reference values captured from the original C++</li>
+          </ul>
+        </div>
+
+        <div class="card reveal">
+          <h3><span class="ic"><svg viewBox="0 0 24 24"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9 12h6M12 9v6"/></svg></span>Extensions run in a sandbox</h3>
+          <p>A WebAssembly host lets people add functionality Audacity does not have, without handing third-party code the keys to the machine. An extension gets audio blocks and one logging call — nothing else.</p>
+          <ul>
+            <li>No filesystem, no network, no environment access</li>
+            <li>A fault inside an extension stops that one call, not the editor</li>
+          </ul>
+        </div>
+
+        <div class="card reveal">
+          <h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M4 20V10M10 20V4M16 20v-7M22 20H2"/></svg></span>A careful port</h3>
+          <p>A port is not finished until the old C++ is deleted. Reference values are captured while the original still exists, so behavior — quirks included — is reproduced, not guessed.</p>
+          <ul>
+            <li>Goldens live in <code>rust/dsp/goldens/reference.txt</code></li>
+            <li>Progress is tracked in <code>docs/port-status.md</code></li>
+          </ul>
+        </div>
+
+        <div class="card reveal">
+          <h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 3v18M3 12h18"/><circle cx="12" cy="12" r="9"/></svg></span>Nothing is taken away</h3>
+          <p>The existing plug-in system — VST, LV2, AU, Nyquist — is left exactly as it was. The extension engine is built alongside it, not as a replacement for it.</p>
+          <ul>
+            <li>Everything Audacity 2.4.1 does, it still does</li>
+            <li>Contributions stay GPL v2 compatible</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Architecture ===== -->
+  <section class="section" id="architecture">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">How it fits together</span>
+        <h2>Two halves joined by a C ABI.</h2>
+        <p>A C++ application that owns the interface and the project, and a Rust core that owns the audio maths and runs WebAssembly extensions.</p>
+      </div>
+
+      <div class="flow">
+        <div class="stack reveal">
+          <h3><span class="tag">Application</span> Editor · C++</h3>
+          <div class="node">
+            <b>Audacity 2.4.1 editor</b>
+            <small>src/ · wxWidgets · tracks &amp; project model · effects</small>
+          </div>
+          <div class="arrow"><span class="bar"></span><span class="lbl">C ABI · rust/dsp/include/rustacity_dsp.h</span><span class="bar"></span></div>
+          <div class="node">
+            <b>rustacity-dsp</b>
+            <small>Rust static library · ported DSP · goldens/reference.txt</small>
+          </div>
+          <p style="color:var(--muted);font-size:14px;margin-top:16px">CMake runs <code>cargo build --release</code> during the normal build and links the crate into the application.</p>
+        </div>
+
+        <div class="stack reveal">
+          <h3><span class="tag">Sandbox</span> Extension host · Rust</h3>
+          <div class="node">
+            <b>extension.toml + extension.wasm</b>
+            <small>a folder with a manifest and a module</small>
+          </div>
+          <div class="arrow"><span class="bar"></span><span class="lbl">audio blocks + one logging call</span><span class="bar"></span></div>
+          <div class="node">
+            <b>Wasmtime sandbox</b>
+            <small>deadline · memory ceiling · no filesystem / network / environment</small>
+          </div>
+          <p style="color:var(--muted);font-size:14px;margin-top:16px">The host runs extensions today; wiring them into the editor's menus is the next piece.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===== Extensions ===== -->
+  <section class="section" id="extensions">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Extensions</span>
+        <h2>Add what Audacity does not do.</h2>
+        <p>An extension is a folder with two files. It receives audio blocks and can log, and nothing else.</p>
+      </div>
+
+      <div class="grid g3">
+        <div class="card reveal">
+          <h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg></span>extension.toml</h3>
+          <p>The manifest: the extension's name, version, parameters and the ranges they may take.</p>
+        </div>
+        <div class="card reveal">
+          <h3><span class="ic"><svg viewBox="0 0 24 24"><path d="m8 6-6 6 6 6M16 6l6 6-6 6"/></svg></span>extension.wasm</h3>
+          <p>The module, built for <code>wasm32-wasip1</code>, exporting the entry points the host expects.</p>
+        </div>
+        <div class="card reveal">
+          <h3><span class="ic"><svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg></span>Nothing else</h3>
+          <p>No filesystem, no network, no environment. If an extension fails, only that call stops — the editor and your unsaved work survive.</p>
+        </div>
+      </div>
+
+      <div class="build-grid" style="margin-top:24px">
+        <div class="code reveal">
+          <header>
+            <span class="dots"><i></i><i></i><i class="s"></i></span>
+            <span>write one</span>
+            <button class="copy" type="button">Copy</button>
+          </header>
+          <pre><code><span class="cmt"># an extension needs neither this tree nor a C++ compiler</span>
+rustup target add wasm32-wasip1
+cp -r rust/extensions/template my-effect
+<span class="cmt"># write my-effect/extension.toml and src/lib.rs</span>
+cargo build --release --target wasm32-wasip1 \
+  --manifest-path my-effect/Cargo.toml</code></pre>
+        </div>
+        <div class="code reveal">
+          <header>
+            <span class="dots"><i></i><i></i><i class="s"></i></span>
+            <span>try one</span>
+            <button class="copy" type="button">Copy</button>
+          </header>
+          <pre><code><span class="cmt"># one extension, over one WAV file, from the outside</span>
+rust/target/release/rustacity-ext-cli --describe \
+  rust/extensions/dist/gain-invert
+rust/target/release/rustacity-ext-cli \
+  rust/extensions/dist/gain-invert in.wav out.wav \
+  <span class="kw">--param</span> gain_db=6 <span class="kw">--verbose</span></code></pre>
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:14.5px;margin-top:18px">
+        Start with <code>rust/extensions/gain-invert</code> — a finished extension — and read
+        <a href="https://github.com/prantosmss/Rustacity/blob/main/docs/extensions/WRITING_AN_EXTENSION.md" style="color:var(--ember)">Writing an extension</a>.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== Status ===== -->
+  <section class="section" id="status">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Status</span>
+        <h2>Early, and honest about it.</h2>
+        <p>Rustacity is under active development. Here is where things stand today.</p>
+      </div>
+
+      <div class="status-list reveal">
+        <div class="row">
+          <span class="area">Audio editor</span>
+          <span class="state">Recording, editing, import/export and effects — the Audacity 2.4.1 the fork is built on.</span>
+          <span class="pill stable">Audacity 2.4.1</span>
+        </div>
+        <div class="row">
+          <span class="area">Rust DSP core</span>
+          <span class="state">Parts of the audio processing have moved to Rust and are checked against reference values from the original C++.</span>
+          <span class="pill wip">In progress</span>
+        </div>
+        <div class="row">
+          <span class="area">Extension host</span>
+          <span class="state">Runs sandboxed WebAssembly extensions, with a deadline, a memory ceiling and no host access.</span>
+          <span class="pill stable">Working</span>
+        </div>
+        <div class="row">
+          <span class="area">Editor integration</span>
+          <span class="state">Installing extensions, menu entries and parameter dialogs are still to come. Extensions are developer-facing for now.</span>
+          <span class="pill todo">Not built yet</span>
+        </div>
+        <div class="row">
+          <span class="area">Prebuilt packages</span>
+          <span class="state">Produced by the release workflow when a version is tagged; otherwise build from source.</span>
+          <span class="pill muted">On release tags</span>
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:14.5px;margin-top:18px">
+        The application still reports the upstream 2.4.x version string; Rustacity releases are numbered separately
+        (for example <code>rustacity-0.4.0</code>).
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== Build ===== -->
+  <section class="section" id="build">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Build from source</span>
+        <h2>Work on the Rust side without a C++ compiler.</h2>
+        <p>The full application builds with CMake and needs a C++ toolchain, CMake, a Rust toolchain and the pinned wxWidgets fork. The Rust workspace is buildable on its own.</p>
+      </div>
+
+      <div class="chips reveal">
+        <span class="chip">Rust toolchain</span>
+        <span class="chip opt">C++ toolchain</span>
+        <span class="chip opt">CMake</span>
+        <span class="chip opt">wxWidgets · audacity-fixes-3.1.3</span>
+      </div>
+
+      <div class="build-grid">
+        <div class="code reveal">
+          <header>
+            <span class="dots"><i></i><i></i><i class="s"></i></span>
+            <span>rust only — no C++ needed</span>
+            <button class="copy" type="button">Copy</button>
+          </header>
+          <pre><code>cd rust
+<span class="cmt"># the extension host's tests build wasm fixtures:</span>
+rustup target add wasm32-wasip1
+cargo test --workspace</code></pre>
+        </div>
+        <div class="code reveal">
+          <header>
+            <span class="dots"><i></i><i></i><i class="s"></i></span>
+            <span>the checks CI runs first</span>
+            <button class="copy" type="button">Copy</button>
+          </header>
+          <pre><code><span class="cmt"># header and Rust exports must agree</span>
+python3 scripts/check_dsp_abi.py
+python3 scripts/check_ext_abi.py</code></pre>
+        </div>
+      </div>
+      <p style="color:var(--muted);font-size:14.5px;margin-top:18px">
+        The per-platform recipes CI uses are the canonical build instructions:
+        <a href="https://github.com/prantosmss/Rustacity/blob/main/.github/workflows/cmake_build.yml" style="color:var(--ember)">.github/workflows/cmake_build.yml</a>.
+        Follow the job for your operating system. A full run takes about twenty minutes.
+      </p>
+    </div>
+  </section>
+
+  <!-- ===== Docs ===== -->
+  <section class="section" id="docs">
+    <div class="wrap">
+      <div class="section-head reveal">
+        <span class="kicker">Documentation</span>
+        <h2>Read before you build.</h2>
+        <p>The repository documents itself in detail. These are the entry points.</p>
+      </div>
+
+      <div class="grid g3">
+        <a class="doc-card reveal" href="https://github.com/prantosmss/Rustacity/blob/main/docs/architecture.md">
+          <b>Architecture</b><span>The two halves, the C ABI rules, the panic policy and the porting rule.</span><span class="go">docs/architecture.md →</span>
+        </a>
+        <a class="doc-card reveal" href="https://github.com/prantosmss/Rustacity/blob/main/docs/repository-layout.md">
+          <b>Repository layout</b><span>What every top-level directory is, and what is inherited from Audacity.</span><span class="go">docs/repository-layout.md →</span>
+        </a>
+        <a class="doc-card reveal" href="https://github.com/prantosmss/Rustacity/blob/main/docs/port-status.md">
+          <b>What is ported</b><span>The ledger of routines that have moved from C++ to Rust.</span><span class="go">docs/port-status.md →</span>
+        </a>
+        <a class="doc-card reveal" href="https://github.com/prantosmss/Rustacity/blob/main/docs/extensions/API.md">
+          <b>Extension API</b><span>The contract an extension's module has to keep.</span><span class="go">docs/extensions/API.md →</span>
+        </a>
+        <a class="doc-card reveal" href="https://github.com/prantosmss/Rustacity/blob/main/docs/extensions/SANDBOX.md">
+          <b>The sandbox</b><span>What the sandbox is — and is not — allowed to do.</span><span class="go">docs/extensions/SANDBOX.md →</span>
+        </a>
+        <a class="doc-card reveal" href="https://github.com/prantosmss/Rustacity/blob/main/docs/roadmap.md">
+          <b>Roadmap</b><span>What is next, so a first contribution does not duplicate work.</span><span class="go">docs/roadmap.md →</span>
+        </a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<!-- ===== Footer ===== -->
+<footer>
+  <div class="wrap">
+    <div class="foot-grid">
+      <div>
+        <div class="foot-brand">
+          <svg viewBox="0 0 512 512" aria-hidden="true">
+            <rect width="512" height="512" rx="112" fill="#1E2327"/>
+            <g transform="translate(256 256) scale(0.80) translate(-256 -256)">
+              <path d="M210.97,87.93 L231.48,83.74 L237.69,50.82 L274.31,50.82 L280.52,83.74 L301.03,87.93 L301.03,87.93 L320.90,94.56 L342.73,69.15 L374.45,87.46 L363.36,119.07 L379.04,132.96 L379.04,132.96 L392.93,148.64 L424.54,137.55 L442.85,169.27 L417.44,191.10 L424.07,210.97 L424.07,210.97 L428.26,231.48 L461.18,237.69 L461.18,274.31 L428.26,280.52 L424.07,301.03 L424.07,301.03 L417.44,320.90 L442.85,342.73 L424.54,374.45 L392.93,363.36 L379.04,379.04 L379.04,379.04 L363.36,392.93 L374.45,424.54 L342.73,442.85 L320.90,417.44 L301.03,424.07 L301.03,424.07 L280.52,428.26 L274.31,461.18 L237.69,461.18 L231.48,428.26 L210.97,424.07 L210.97,424.07 L191.10,417.44 L169.27,442.85 L137.55,424.54 L148.64,392.93 L132.96,379.04 L132.96,379.04 L119.07,363.36 L87.46,374.45 L69.15,342.73 L94.56,320.90 L87.93,301.03 L87.93,301.03 L83.74,280.52 L50.82,274.31 L50.82,237.69 L83.74,231.48 L87.93,210.97 L87.93,210.97 L94.56,191.10 L69.15,169.27 L87.46,137.55 L119.07,148.64 L132.96,132.96 L132.96,132.96 L148.64,119.07 L137.55,87.46 L169.27,69.15 L191.10,94.56 L210.97,87.93 Z M114,256 a142,142 0 1,0 284,0 a142,142 0 1,0 -284,0 Z" fill="#D9481F" fill-rule="evenodd"/>
+              <rect x="144.5" y="239" width="13" height="34" rx="6.5" fill="#F5E9DD"/>
+              <rect x="165.5" y="221" width="13" height="70" rx="6.5" fill="#F5E9DD"/>
+              <rect x="186.5" y="200" width="13" height="112" rx="6.5" fill="#F5E9DD"/>
+              <rect x="207.5" y="217" width="13" height="78" rx="6.5" fill="#F5E9DD"/>
+              <rect x="228.5" y="181" width="13" height="150" rx="6.5" fill="#F5E9DD"/>
+              <rect x="249.5" y="148" width="13" height="216" rx="6.5" fill="#F4733A"/>
+              <rect x="270.5" y="187" width="13" height="138" rx="6.5" fill="#F5E9DD"/>
+              <rect x="291.5" y="210" width="13" height="92" rx="6.5" fill="#F5E9DD"/>
+              <rect x="312.5" y="196" width="13" height="120" rx="6.5" fill="#F5E9DD"/>
+              <rect x="333.5" y="227" width="13" height="58" rx="6.5" fill="#F5E9DD"/>
+              <rect x="354.5" y="242" width="13" height="28" rx="6.5" fill="#F5E9DD"/>
+            </g>
+          </svg>
+          <span>Rustacity</span>
+        </div>
+        <p style="color:var(--muted);margin-top:14px;max-width:34ch">Audio editing, forged in Rust.</p>
+      </div>
+      <nav class="foot-links" aria-label="Footer">
+        <a href="https://github.com/prantosmss/Rustacity">Repository</a>
+        <a href="https://github.com/prantosmss/Rustacity/releases">Releases</a>
+        <a href="https://github.com/prantosmss/Rustacity/blob/main/docs/roadmap.md">Roadmap</a>
+        <a href="https://github.com/prantosmss/Rustacity/blob/main/CONTRIBUTING.md">Contributing</a>
+        <a href="https://github.com/prantosmss/Rustacity/blob/main/SECURITY.md">Security</a>
+        <a href="https://github.com/prantosmss/Rustacity/blob/main/LICENSE.txt">License</a>
+      </nav>
+    </div>
+    <p class="legal">
+      Rustacity is a fork of Audacity 2.4.1 and is distributed under the <a href="https://github.com/prantosmss/Rustacity/blob/main/LICENSE.txt">GNU General Public License, version 2</a>.
+      Audacity® is copyright © 1999–2016 Audacity Team; its notices are kept throughout the tree. Changes made for the fork are copyright © <span id="year">2026</span> Sadik Pranto and are licensed under the same terms.
+      Rustacity is an independent fork and is not affiliated with or endorsed by the Audacity Team. Audacity® is a registered trademark of its owner.
+    </p>
+  </div>
+</footer>
+
+<script>
+  // Hero waveform divider, echoing the logo's skyline bars.
+  (function () {
+    var host = document.getElementById('heroWave');
+    if (!host) return;
+    var bars = [10, 18, 30, 22, 40, 58, 36, 24, 32, 16, 9];
+    bars.forEach(function (h, i) {
+      var el = document.createElement('i');
+      el.style.setProperty('--h', h + 'px');
+      if (i === 5) el.className = 'hot';
+      host.appendChild(el);
+    });
+  })();
+
+  // Reveal-on-scroll (respects reduced motion via CSS).
+  (function () {
+    var els = document.querySelectorAll('.reveal');
+    if (!('IntersectionObserver' in window)) {
+      els.forEach(function (e) { e.classList.add('in'); });
+      return;
+    }
+    var io = new IntersectionObserver(function (entries) {
+      entries.forEach(function (entry) {
+        if (entry.isIntersecting) { entry.target.classList.add('in'); io.unobserve(entry.target); }
+      });
+    }, { rootMargin: '0px 0px -8% 0px', threshold: 0.08 });
+    els.forEach(function (e) { io.observe(e); });
+  })();
+
+  // Copy buttons for code blocks.
+  document.querySelectorAll('.code').forEach(function (block) {
+    var btn = block.querySelector('.copy');
+    var code = block.querySelector('code');
+    if (!btn || !code) return;
+    btn.addEventListener('click', function () {
+      navigator.clipboard.writeText(code.innerText).then(function () {
+        var old = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(function () { btn.textContent = old; }, 1400);
+      });
+    });
+  });
+
+  document.getElementById('year').textContent = new Date().getFullYear();
+</script>
+</body>
+</html>
