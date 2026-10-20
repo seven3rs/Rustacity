@@ -4,7 +4,7 @@
 
   rustacity_dsp.h
 
-  Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+  Contributor: Sato <seven3rs@gmail.com>
 
   C ABI of the Rust DSP core (crate rustacity-dsp under rust/dsp).
   The declarations below mirror the implementations in

@@ -43,7 +43,7 @@ be held accountable by the project's other maintainers.
 
 ## Reporting
 
-Report unacceptable behaviour to the project's maintainer, `@prantosmss` on
+Report unacceptable behaviour to the project's maintainer, `@seven3rs` on
 GitHub. Two private channels work:
 
 * the *Report a vulnerability* form under this repository's **Security** tab -

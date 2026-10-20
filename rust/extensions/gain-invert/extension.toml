@@ -3,7 +3,7 @@ id = "com.rustacity.gain-invert"
 name = "Gain / Invert"
 version = "0.1.0"
 description = "Trim the gain in decibels and optionally flip the polarity"
-author = "Sadik Pranto"
+author = "Sato"
 license = "GPL-2.0-or-later"
 
 capabilities = ["audio.read", "audio.write"]

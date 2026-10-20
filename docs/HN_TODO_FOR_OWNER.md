@@ -9,9 +9,9 @@ worth doing before the branch is merged, the second before anything is posted.
 - [ ] **Set the repository description and topics.** `gh` is not installed here,
       so these are the commands to run:
       ```sh
-      gh repo edit prantosmss/Rustacity \
+      gh repo edit seven3rs/Rustacity \
         --description "An Audacity 2.4.1 fork: sandboxed WebAssembly extensions, and audio DSP moving into Rust"
-      gh repo edit prantosmss/Rustacity \
+      gh repo edit seven3rs/Rustacity \
         --add-topic rust --add-topic audio --add-topic dsp --add-topic webassembly \
         --add-topic wasm --add-topic audacity --add-topic audio-editor --add-topic sandbox \
         --remove-topic rustacean --remove-topic rustaceans

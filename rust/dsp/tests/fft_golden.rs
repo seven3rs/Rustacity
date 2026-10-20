@@ -1,6 +1,6 @@
 // Rustacity: A Digital Audio Editor
 //
-// Copyright (C) 2026 Sadik Pranto
+// Copyright (C) 2026 Sato
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 

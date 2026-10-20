@@ -1,6 +1,6 @@
 // Rustacity: A Digital Audio Editor
 //
-// Copyright (C) 2026 Sadik Pranto
+// Copyright (C) 2026 Sato
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -18,7 +18,7 @@
 //! pre-gain that is applied in `f64` and narrowed back, and the `f32` sample
 //! rate the DC block's queue length is derived from.
 //!
-//! Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+//! Contributor: Sato <seven3rs@gmail.com>
 
 use std::collections::VecDeque;
 use std::f64::consts::{FRAC_PI_2, PI};

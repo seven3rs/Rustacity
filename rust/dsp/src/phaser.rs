@@ -1,6 +1,6 @@
 // Rustacity: A Digital Audio Editor
 //
-// Copyright (C) 2026 Sadik Pranto
+// Copyright (C) 2026 Sato
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -13,7 +13,7 @@
 //! order and precision, including the `f32` sample rate the LFO step is
 //! derived from and the final narrowing of each sample to `f32`.
 //!
-//! Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+//! Contributor: Sato <seven3rs@gmail.com>
 
 use std::f64::consts::PI;
 

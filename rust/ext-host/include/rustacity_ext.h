@@ -4,7 +4,7 @@
 
   rustacity_ext.h
 
-  Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+  Contributor: Sato <seven3rs@gmail.com>
 
   C ABI of the sandboxed extension host (crate rustacity-ext-host under
   rust/ext-host).  The declarations below mirror the implementations in

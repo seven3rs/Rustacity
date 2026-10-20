@@ -141,7 +141,7 @@ after **5.54 s** of wall clock, and `hostile-wasi` logs that it obtained
 **Not built on the machine that wrote this branch** — no wxWidgets, no MSVC, no
 CMake tree. The evidence is CI, on the commit this branch starts from:
 
-- run [`39109395290`](https://github.com/prantosmss/Rustacity/actions/runs/39109395290),
+- run [`39109395290`](https://github.com/seven3rs/Rustacity/actions/runs/39109395290),
   `push` to `main`, **all six jobs success**: `Extensions`, `Goldens`,
   `Windows_64bit` (Visual Studio 17 2022, MSVC), `macOS` (Xcode, Intel runner),
   `Rust Tests`, `Ubuntu_24.04` (GCC). `Publish Release` is skipped, as it only

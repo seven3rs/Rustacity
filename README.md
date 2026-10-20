@@ -6,7 +6,7 @@
 
 **An Audacity 2.4.1 fork with a Rust audio core and a sandboxed WebAssembly extension engine.**
 
-[![Build](https://github.com/prantosmss/Rustacity/actions/workflows/cmake_build.yml/badge.svg)](https://github.com/prantosmss/Rustacity/actions/workflows/cmake_build.yml)
+[![Build](https://github.com/seven3rs/Rustacity/actions/workflows/cmake_build.yml/badge.svg)](https://github.com/seven3rs/Rustacity/actions/workflows/cmake_build.yml)
 [![License: GPL v2](https://img.shields.io/badge/license-GPL--2.0-blue.svg)](LICENSE.txt)
 [![Platforms](https://img.shields.io/badge/platforms-Windows%20%7C%20macOS%20%7C%20Linux-lightgrey.svg)](#building-from-source)
 
@@ -40,7 +40,7 @@ Rustacity is early and under active development. Here is where things stand.
 | Rust DSP core (`rust/dsp/`) | In progress. Parts of the audio processing are in Rust and checked against reference values from the original C++ |
 | Extension host (`rust/ext-host/`) | Runs sandboxed WebAssembly extensions |
 | Editor integration for extensions | **Not built yet.** Installing extensions, menu entries and parameter dialogs are still to come |
-| Prebuilt packages | Produced by the release workflow when a version is tagged. See [Releases](https://github.com/prantosmss/Rustacity/releases); otherwise [build from source](#building-from-source) |
+| Prebuilt packages | Produced by the release workflow when a version is tagged. See [Releases](https://github.com/seven3rs/Rustacity/releases); otherwise [build from source](#building-from-source) |
 
 The application still reports the upstream 2.4.x version string. Rustacity releases are numbered separately (for example `rustacity-0.4.0`).
 
@@ -161,7 +161,7 @@ Releases are cut from `main` with an annotated tag named by release number, for 
 Rustacity is a fork of Audacity 2.4.1 and is distributed under the terms of the [GNU General Public License, version 2](LICENSE.txt), as Audacity is.
 
 - Audacity® is copyright © 1999–2016 Audacity Team. Its notices are kept throughout this tree.
-- Changes made for the fork are copyright © 2026 Sadik Pranto and are licensed under the same terms.
+- Changes made for the fork are copyright © 2026 Sato and are licensed under the same terms.
 - Documentation is under CC BY 3.0, and code in `lib-src/` may be under a different GPL-compatible license. See `LICENSE.txt` for the details.
 
 Rustacity is an independent fork and is not affiliated with or endorsed by the Audacity Team. Audacity® is a registered trademark of its owner.

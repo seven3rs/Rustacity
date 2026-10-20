@@ -1,6 +1,6 @@
 // Rustacity: A Digital Audio Editor
 //
-// Copyright (C) 2026 Sadik Pranto
+// Copyright (C) 2026 Sato
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -33,7 +33,7 @@
 //!   the C++ when the bad run starts at sample 1 of a two-sample buffer, which
 //!   is out of bounds.  It reads zero here.
 //!
-//! Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+//! Contributor: Sato <seven3rs@gmail.com>
 
 /// `RAND_MAX` of glibc, whose generator is the one the port reproduces.  It is
 /// 32767 on Windows and 2147483647 elsewhere, which is why the original's noise

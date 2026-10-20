@@ -4,7 +4,7 @@
 
   Extension.cpp
 
-  Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+  Contributor: Sato <seven3rs@gmail.com>
 
 *******************************************************************//**
 

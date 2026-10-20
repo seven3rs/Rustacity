@@ -1,6 +1,6 @@
 // Rustacity: A Digital Audio Editor
 //
-// Copyright (C) 2026 Sadik Pranto
+// Copyright (C) 2026 Sato
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -12,7 +12,7 @@
 //! boundary: each entry point runs under [`guard`], which turns a panic
 //! into a harmless return value instead of unwinding into C++.
 //!
-//! Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+//! Contributor: Sato <seven3rs@gmail.com>
 
 use core::ffi::c_int;
 use core::slice;

@@ -1,7 +1,7 @@
 # Contributing
 
 Rustacity is a fork of Audacity 2.4.1, and it lives at
-<https://github.com/prantosmss/Rustacity>. Issues and pull requests here are
+<https://github.com/seven3rs/Rustacity>. Issues and pull requests here are
 the place to report a problem or propose a change. The [upstream wiki][wiki]
 and [forum][forum] describe upstream Audacity: they remain a useful reference
 for the application this forked from, but they cannot help with Rustacity

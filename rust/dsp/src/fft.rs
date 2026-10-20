@@ -1,6 +1,6 @@
 // Rustacity: A Digital Audio Editor
 //
-// Copyright (C) 2026 Sadik Pranto
+// Copyright (C) 2026 Sato
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -26,7 +26,7 @@
 //! holds `fftlen` floats, and the caller owns both.  That is the shape the C
 //! ABI in `rust/dsp/include/rustacity_dsp.h` passes them in.
 //!
-//! Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+//! Contributor: Sato <seven3rs@gmail.com>
 
 use std::sync::{Arc, Mutex};
 

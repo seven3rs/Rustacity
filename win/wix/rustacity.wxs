@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Rustacity: A Digital Audio Editor
-  Copyright (C) 2026 Sadik Pranto
+  Copyright (C) 2026 Sato
   SPDX-License-Identifier: GPL-2.0-or-later
 
   The MSI installs the same build tree as the 7z beside it.  Most of the
@@ -31,7 +31,7 @@
 -->
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
   <?define Manufacturer = "Rustacity Project" ?>
-  <?define ProjectUrl = "https://github.com/prantosmss/Rustacity" ?>
+  <?define ProjectUrl = "https://github.com/seven3rs/Rustacity" ?>
 
   <!-- Stays the same for every release: Windows uses it to recognise a
        newer version of the product as an upgrade of this one. -->

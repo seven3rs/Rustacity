@@ -4,7 +4,7 @@
 
 Please report privately, not in a public issue: use **Security → Report a
 vulnerability** on this repository's GitHub page (GitHub's private
-vulnerability reporting), or email <pranto.smss.dev@gmail.com>. `TODO(owner)`:
+vulnerability reporting), or email <seven3rs@gmail.com>. `TODO(owner)`:
 confirm the address to use for security reports, and enable private
 vulnerability reporting on the repository if that is the route you prefer.
 

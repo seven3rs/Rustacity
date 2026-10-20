@@ -1,6 +1,6 @@
 // Rustacity: A Digital Audio Editor
 //
-// Copyright (C) 2026 Sadik Pranto
+// Copyright (C) 2026 Sato
 //
 // SPDX-License-Identifier: GPL-2.0-or-later
 
@@ -10,7 +10,7 @@
 //! exposed to the application through the C ABI declared in
 //! `include/rustacity_dsp.h`.  Zero runtime dependencies.
 //!
-//! Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+//! Contributor: Sato <seven3rs@gmail.com>
 
 pub mod bass_treble;
 pub mod biquad;

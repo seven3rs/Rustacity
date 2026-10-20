@@ -6,7 +6,7 @@
 # its own.  scripts/build-extensions.sh builds every member and lays the
 # results out as complete extension directories under dist/.
 #
-# Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+# Contributor: Sato <seven3rs@gmail.com>
 
 [workspace]
 members = ["gain-invert", "hostile", "template"]

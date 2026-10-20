@@ -276,7 +276,7 @@ static wxString HelpTextBuiltIn( const wxString & Key )
 " [[https://forum.audacityteam.org/|Audacity Forum]] - upstream's forum, which is not our support desk.")
          << wxT("</li><li>")
          << XO(
-" [[https://github.com/prantosmss/Rustacity/issues|Rustacity issues]] - to report a problem with Rustacity itself.")
+" [[https://github.com/seven3rs/Rustacity/issues|Rustacity issues]] - to report a problem with Rustacity itself.")
          << wxT("</li></ul></p><p>")
          << wxT("<b>")
          << XO("More:</b> Visit the [[https://wiki.audacityteam.org/index.php|Audacity Wiki]] for tips, tricks, extra tutorials and effects plug-ins.")

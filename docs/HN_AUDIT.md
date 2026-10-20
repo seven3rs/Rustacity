@@ -1,6 +1,6 @@
 # Audit: state of the repository before the front page is rewritten
 
-This is an audit of `prantosmss/Rustacity` as it stood at commit `ee408e94d3`
+This is an audit of `seven3rs/Rustacity` as it stood at commit `ee408e94d3`
 on `main`, carried out before any change in this branch, so that the front page
 can be written from evidence rather than from intention. Everything below was
 observed here; commands that were run are quoted, and anything that was not

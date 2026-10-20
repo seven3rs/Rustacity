@@ -4,7 +4,7 @@
 
   Extension.h
 
-  Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+  Contributor: Sato <seven3rs@gmail.com>
 
   Runs a sandboxed WebAssembly extension over the selected audio.  The
   engine is the Rust library built from rust/ext-host, reached through

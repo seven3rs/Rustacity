@@ -1,5 +1,5 @@
 // Rustacity: A Digital Audio Editor
-// Copyright (C) 2026 Sadik Pranto
+// Copyright (C) 2026 Sato
 // SPDX-License-Identifier: GPL-2.0-or-later
 
 //! The log an extension may write to, and the budget it gets.

@@ -51,9 +51,9 @@ AppVerName=Rustacity {#AppVersion}
 ; Specify AppVersion as well, so it appears in the Add/Remove Programs entry. 
 AppVersion={#AppVersion}
 AppPublisher="Rustacity Project"
-AppPublisherURL=https://github.com/prantosmss/Rustacity
-AppSupportURL=https://github.com/prantosmss/Rustacity
-AppUpdatesURL=https://github.com/prantosmss/Rustacity
+AppPublisherURL=https://github.com/seven3rs/Rustacity
+AppSupportURL=https://github.com/seven3rs/Rustacity
+AppUpdatesURL=https://github.com/seven3rs/Rustacity
 ChangesAssociations=yes
 
 DefaultDirName={pf}\Rustacity

@@ -1,6 +1,6 @@
 # Cargo workspace for Rustacity's Rust components.
 #
-# Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+# Contributor: Sato <seven3rs@gmail.com>
 
 [workspace]
 members = ["dsp", "ext-api", "ext-host", "ext-cli", "ext-manager", "ext-manager-gui"]

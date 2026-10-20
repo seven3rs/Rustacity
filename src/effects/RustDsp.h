@@ -4,7 +4,7 @@ Rustacity: A Digital Audio Editor
 
 RustDsp.h
 
-Contributor: Sadik Pranto <pranto.smss.dev@gmail.com>
+Contributor: Sato <seven3rs@gmail.com>
 
 Conversions between the C++ DSP types and their Rust counterparts
 declared in rust/dsp/include/rustacity_dsp.h.
