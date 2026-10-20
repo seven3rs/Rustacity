@@ -9,5 +9,7 @@ default-run = "rustacity-app"
 
 [dependencies]
 iced.workspace = true
+rfd.workspace = true
 rustacity-engine.workspace = true
+rustacity-io.workspace = true
 rustacity-ui.workspace = true

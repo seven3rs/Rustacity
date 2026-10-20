@@ -9,3 +9,4 @@ description = "Views and widgets for the Rustacity iced shell"
 [dependencies]
 iced.workspace = true
 rustacity-engine.workspace = true
+rustacity-io.workspace = true

@@ -23,9 +23,13 @@ license = "GPL-2.0-or-later"
 publish = false
 
 [workspace.dependencies]
-iced = "0.14.0"
+cpal = "0.18.2"
+hound = "3.5.1"
+iced = { version = "0.14.0", features = ["canvas", "smol"] }
+rfd = "0.17.2"
 rustacity-dsp = { path = "../dsp" }
 rustacity-engine = { path = "crates/rustacity-engine" }
 rustacity-io = { path = "crates/rustacity-io" }
 rustacity-project = { path = "crates/rustacity-project" }
 rustacity-ui = { path = "crates/rustacity-ui" }
+thiserror = "2"

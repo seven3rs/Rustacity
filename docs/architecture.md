@@ -56,6 +56,12 @@ the parity matrix that decides when the C++ tree can be retired is
 [`docs/rust-app/parity.md`](rust-app/parity.md). The C++ application remains the
 shipping application until that matrix is met.
 
+M1 is the first vertical slice: `rustacity-io` decodes WAV, builds the peak
+pyramid and drives `cpal`; `rustacity-ui` owns the waveform canvas; and
+`rustacity-app` owns loading, transport and the visible time range. The audio
+backend and the codec stay behind `rustacity-io`, so the shell never links a
+codec directly.
+
 ## The ABI
 
 The C interface is `rust/dsp/include/rustacity_dsp.h`; the implementations are
