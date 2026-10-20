@@ -1,0 +1,62 @@
+# The Rust desktop application (iced shell).
+#
+# This workspace is separate from `rust/`: it links a windowing and graphics
+# stack that the C++ application and the DSP test suite do not need. The job
+# starts on Windows, the first platform the MVP targets; Linux and macOS join
+# once the vertical slice is stable.
+
+name: Rust app
+
+on:
+  push:
+    paths:
+      - "rust/app/**"
+      - "rust/dsp/**"
+      - "rust/ext-api/**"
+      - "rust/ext-host/**"
+      - ".github/workflows/rust-app.yml"
+  pull_request:
+    paths:
+      - "rust/app/**"
+      - "rust/dsp/**"
+      - "rust/ext-api/**"
+      - "rust/ext-host/**"
+      - ".github/workflows/rust-app.yml"
+
+permissions:
+  contents: read
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  windows:
+    name: Windows
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: rust/app
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Install rustfmt and clippy
+        run: rustup component add rustfmt clippy
+
+      - name: Cache cargo
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: rust/app -> target
+
+      - name: Check formatting
+        run: cargo fmt -p rustacity-app -p rustacity-engine -p rustacity-io -p rustacity-project -p rustacity-ui --check
+
+      - name: Clippy
+        run: cargo clippy --workspace --all-targets -- -D warnings
+
+      - name: Test
+        run: cargo test --workspace
+
+      - name: Build
+        run: cargo build --workspace

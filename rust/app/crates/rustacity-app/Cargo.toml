@@ -1,0 +1,13 @@
+[package]
+name = "rustacity-app"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Rustacity desktop application: the iced shell"
+default-run = "rustacity-app"
+
+[dependencies]
+iced.workspace = true
+rustacity-engine.workspace = true
+rustacity-ui.workspace = true

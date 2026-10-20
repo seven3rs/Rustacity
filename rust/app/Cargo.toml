@@ -1,0 +1,31 @@
+# The Rustacity desktop application.
+#
+# This is a workspace of its own, deliberately excluded from `rust/`: the
+# iced shell links a windowing and graphics stack that neither the C++
+# application nor the DSP test suite needs. It reuses the DSP core by path.
+#
+# Contributor: Sato <seven3rs@gmail.com>
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/rustacity-app",
+    "crates/rustacity-engine",
+    "crates/rustacity-io",
+    "crates/rustacity-project",
+    "crates/rustacity-ui",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+publish = false
+
+[workspace.dependencies]
+iced = "0.14.0"
+rustacity-dsp = { path = "../dsp" }
+rustacity-engine = { path = "crates/rustacity-engine" }
+rustacity-io = { path = "crates/rustacity-io" }
+rustacity-project = { path = "crates/rustacity-project" }
+rustacity-ui = { path = "crates/rustacity-ui" }

@@ -8,7 +8,11 @@ members = ["dsp", "ext-api", "ext-host", "ext-cli", "ext-manager", "ext-manager-
 # they build for wasm32-wasip1 with their own profile and are never linked
 # into the application, so they stand outside this workspace and are built
 # by scripts/build-extensions.sh.
-exclude = ["extensions/*"]
+#
+# The desktop application is its own workspace too: the iced shell links a
+# windowing and graphics stack that neither the C++ application nor the DSP
+# test suite needs. It reuses the DSP core by path.
+exclude = ["extensions/*", "app"]
 resolver = "2"
 
 # rustacity-dsp is linked into the C++ application as a static library.

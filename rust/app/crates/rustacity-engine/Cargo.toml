@@ -1,0 +1,10 @@
+[package]
+name = "rustacity-engine"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Project, tracks, transport and edit operations for the Rustacity application"
+
+[dependencies]
+rustacity-dsp.workspace = true
