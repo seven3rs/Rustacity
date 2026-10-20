@@ -45,6 +45,17 @@ is how to write one, and
 [`docs/extensions/INTEGRATION_NOTES.md`](extensions/INTEGRATION_NOTES.md) says
 what is not built or tested yet.
 
+## The Rust shell (in progress)
+
+`rust/app/` is the iced shell that will replace the wxWidgets frontend. It is a
+workspace of its own, excluded from `rust/`, and it is not part of the C++
+application's build yet. The decisions are recorded in
+[`docs/rust-app/ADR-0001-iced.md`](rust-app/ADR-0001-iced.md) and
+[`docs/rust-app/ADR-0002-engine-first.md`](rust-app/ADR-0002-engine-first.md);
+the parity matrix that decides when the C++ tree can be retired is
+[`docs/rust-app/parity.md`](rust-app/parity.md). The C++ application remains the
+shipping application until that matrix is met.
+
 ## The ABI
 
 The C interface is `rust/dsp/include/rustacity_dsp.h`; the implementations are

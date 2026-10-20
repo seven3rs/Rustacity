@@ -13,10 +13,11 @@ only records what is easy to get wrong.
 - **No tree-wide renames.** Files, classes and functions keep their names.
 - **Zero compiler warnings** is the bar.
 
-## Rust workspace and the two traps
+## Rust workspaces and the three traps
 
 `rust/` is one cargo workspace (`dsp`, `ext-api`, `ext-host`, `ext-cli`, `ext-manager`,
-`ext-manager-gui`). Two things bite:
+`ext-manager-gui`). The desktop shell is a second workspace in `rust/app/` (`app`, `ui`,
+`engine`, `io`, `project`). Three things bite:
 
 1. **`rust/extensions/` is a separate workspace, excluded from `rust/`.** A plain
    `cargo test --workspace` does **not** build or test it. It targets `wasm32-wasip1` and is
@@ -24,10 +25,17 @@ only records what is easy to get wrong.
    the build script and the host's test fixtures both read.
 2. **`rust/ext-host`'s tests compile their own wasm fixtures**, so run
    `rustup target add wasm32-wasip1` before `cargo test --workspace`, or the host tests fail.
+3. **`rust/app/` is a separate workspace, excluded from `rust/`.** A plain
+   `cargo test --workspace` in `rust/` does not build the shell, and its iced/wgpu stack is
+   not part of the C++ application. Run the shell's gates from `rust/app`; it depends on
+   `rust/dsp` by path.
 
 ```sh
 cd rust
 cargo test --workspace          # unit, golden-value and ext-host-into-wasm tests
+
+cd app
+cargo test --workspace          # the iced shell (M0: engine vocabulary and views)
 ```
 
 ## Verify before pushing (CI gates)
@@ -50,6 +58,16 @@ lints and is *not* held to them; match its surrounding style by hand. The gates 
 cd rust && cargo clippy -p rustacity-ext-api -p rustacity-ext-host -p rustacity-ext-cli \
   -p rustacity-ext-manager -p rustacity-ext-manager-gui --all-targets -- -D warnings
 cd rust/extensions && cargo clippy --workspace --all-targets --target wasm32-wasip1 -- -D warnings
+```
+
+The shell's gates are separate and cover only its five crates, so the DSP crate's
+pre-existing formatting is not touched:
+
+```sh
+cd rust/app
+cargo fmt -p rustacity-app -p rustacity-engine -p rustacity-io -p rustacity-project -p rustacity-ui --check
+cargo clippy --workspace --all-targets -- -D warnings
+cargo test --workspace
 ```
 
 ## Panic policy (do not change)
