@@ -3,13 +3,35 @@
 # Contributor: Sato <seven3rs@gmail.com>
 
 [workspace]
-members = ["dsp", "ext-api", "ext-host", "ext-cli", "ext-manager", "ext-manager-gui"]
+members = [
+    "backend",
+    "dsp",
+    "engine",
+    "ext-api",
+    "ext-host",
+    "ext-cli",
+    "ext-manager",
+    "ext-manager-gui",
+    "io",
+]
 # The extensions themselves are WebAssembly modules, not parts of the host:
 # they build for wasm32-wasip1 with their own profile and are never linked
 # into the application, so they stand outside this workspace and are built
 # by scripts/build-extensions.sh.
 exclude = ["extensions/*"]
 resolver = "2"
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "GPL-2.0-or-later"
+publish = false
+
+[workspace.dependencies]
+hound = "3.5.1"
+thiserror = "2"
+rustacity-engine = { path = "engine" }
+rustacity-io = { path = "io" }
 
 # rustacity-dsp is linked into the C++ application as a static library.
 # A panic must never unwind into the C++ caller, but "abort" would kill

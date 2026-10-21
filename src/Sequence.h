@@ -11,6 +11,7 @@
 #ifndef __RUSTACITY_SEQUENCE__
 #define __RUSTACITY_SEQUENCE__
 
+#include <memory>
 #include <vector>
 
 #include "SampleFormat.h"
@@ -23,6 +24,7 @@ class BlockFile;
 using BlockFilePtr = std::shared_ptr<BlockFile>;
 
 class DirManager;
+class RustSequence;
 class wxFileNameWrapper;
 
 // This is an internal data structure!  For advanced use only.
@@ -80,7 +82,13 @@ class PROFILE_DLL_API Sequence final : public XMLTagHandler{
    // Editing
    //
 
-   sampleCount GetNumSamples() const { return mNumSamples; }
+   sampleCount GetNumSamples() const;
+
+   // A sequence created by the Rust WAV importer keeps its samples in Rust.
+   // Its block array stays empty and every edit below delegates to the Rust
+   // buffer; legacy block-file sequences keep the original C++ path.
+   void AdoptRustSequence(std::shared_ptr<RustSequence> sequence);
+   bool IsRustBacked() const { return mRust != nullptr; }
 
    bool Get(samplePtr buffer, sampleFormat format,
             sampleCount start, size_t len, bool mayThrow) const;
@@ -222,6 +230,8 @@ class PROFILE_DLL_API Sequence final : public XMLTagHandler{
 
    std::shared_ptr<DirManager> mDirManager;
 
+   std::shared_ptr<RustSequence> mRust;
+
    BlockArray    mBlock;
    sampleFormat  mSampleFormat;
 
@@ -241,6 +251,12 @@ class PROFILE_DLL_API Sequence final : public XMLTagHandler{
    //
 
    int FindBlock(sampleCount pos) const;
+
+   // Turn a Rust-backed sequence into the legacy block-file form.  Called
+   // from WriteXML (during a save) and before a sample-format conversion, so
+   // the project and the orphan-file cleanup see real block files instead of
+   // a Rust-only buffer.
+   void MaterializeRust();
 
    static void AppendBlock
       (DirManager &dirManager,

@@ -16,10 +16,11 @@
 
 ---
 
-Rustacity is the Audacity editor you already know (multi-track, sample-accurate, scriptable) with two additions underneath it:
+Rustacity is the Audacity editor you already know (multi-track, sample-accurate, scriptable) with three additions underneath it:
 
 1. **New audio code is written in Rust.** DSP moves out of legacy C++ and into the `rustacity-dsp` crate, behind a small C interface, and every ported routine is checked against reference values captured from the original C++.
-2. **Extensions run in a sandbox.** A WebAssembly host (`rust/ext-host/`) lets people add functionality that standard Audacity does not have, without handing third-party code the keys to your machine.
+2. **Audio buffers and edits live in Rust too.** A WAV imported by the editor is decoded into `rust/backend`; the C++ `Sequence` delegates sample reads, edits and waveform peaks to it, while the existing wxWidgets track panel and dialogs stay in place.
+3. **Extensions run in a sandbox.** A WebAssembly host (`rust/ext-host/`) lets people add functionality that standard Audacity does not have, without handing third-party code the keys to your machine.
 
 Everything else stays Audacity 2.4.1, plug-in support included.
 
@@ -38,6 +39,7 @@ Rustacity is early and under active development. Here is where things stand.
 |---|---|
 | Audio editor (recording, editing, import/export, effects) | Audacity 2.4.1 |
 | Rust DSP core (`rust/dsp/`) | In progress. Parts of the audio processing are in Rust and checked against reference values from the original C++ |
+| Rust audio backend (`rust/backend/`) | First slice. WAV import and the samples/edits behind a clip are in Rust; legacy `.aup` clips and non-WAV importers still use the C++ block-file path |
 | Extension host (`rust/ext-host/`) | Runs sandboxed WebAssembly extensions |
 | Editor integration for extensions | **Not built yet.** Installing extensions, menu entries and parameter dialogs are still to come |
 | Prebuilt packages | Produced by the release workflow when a version is tagged. See [Releases](https://github.com/seven3rs/Rustacity/releases); otherwise [build from source](#building-from-source) |
@@ -51,10 +53,15 @@ For exactly which routines have moved to Rust, see the port-status document in [
 ```
  Audacity 2.4.1 editor (C++, src/)
           │
-          │  C interface:  rust/dsp/include/rustacity_dsp.h
-          ▼
- rustacity-dsp  (Rust static library, rust/dsp/)
-   ported DSP, checked against goldens/reference.txt
+          ├── rust/backend/include/rustacity_backend.h
+          │      ▼
+          │   rustacity-backend  (Rust static library, rust/backend/)
+          │     one mono sequence per clip channel, edits and WAV import
+          │
+          └── rust/dsp/include/rustacity_dsp.h
+                 ▼
+              rustacity-dsp  (Rust static library, rust/dsp/)
+                ported DSP, checked against goldens/reference.txt
 
 
  Extension host (Rust, rust/ext-host/)
@@ -63,7 +70,7 @@ For exactly which routines have moved to Rust, see the port-status document in [
    no filesystem · no network · no environment
 ```
 
-CMake runs `cargo build --release` during the normal build and links the Rust crate into the application as a static library.
+CMake runs `cargo build --release` during the normal build and links the Rust static libraries into the application.
 
 ## Features inherited from Audacity 2.4.1
 
@@ -111,10 +118,12 @@ cd rust
 cargo test --workspace
 ```
 
-Before you push, also run the ABI check, which confirms the C header and the Rust exports agree:
+Before you push, also run the ABI checks, which confirm each C header and its Rust exports agree:
 
 ```bash
 python3 scripts/check_dsp_abi.py
+python3 scripts/check_ext_abi.py
+python3 scripts/check_backend_abi.py
 ```
 
 CI captures golden values and builds the whole application on four platforms. A run takes about twenty minutes.

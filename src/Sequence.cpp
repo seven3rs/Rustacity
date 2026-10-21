@@ -49,6 +49,43 @@
 
 #include "widgets/RustacityMessageBox.h"
 
+#include "RustBackend.h"
+
+#include <cstring>
+#include <utility>
+
+namespace
+{
+std::vector<float> RustSamplesToFloat(
+   samplePtr buffer, sampleFormat format, size_t len)
+{
+   std::vector<float> samples(len);
+   if (len == 0)
+      return samples;
+
+   if (format == floatSample)
+      memcpy(samples.data(), buffer, len * sizeof(float));
+   else
+      CopySamples(buffer, format, (samplePtr)samples.data(), floatSample,
+         static_cast<unsigned int>(len));
+
+   return samples;
+}
+
+void RustFloatToSamples(
+   const std::vector<float> &samples, samplePtr buffer, sampleFormat format)
+{
+   if (samples.empty())
+      return;
+
+   if (format == floatSample)
+      memcpy(buffer, samples.data(), samples.size() * sizeof(float));
+   else
+      CopySamples((samplePtr)samples.data(), floatSample, buffer, format,
+         static_cast<unsigned int>(samples.size()));
+}
+}
+
 size_t Sequence::sMaxDiskBlockSize = 1048576;
 
 // Sequence methods
@@ -69,11 +106,34 @@ Sequence::Sequence(const Sequence &orig, const std::shared_ptr<DirManager> &proj
    , mMinSamples(orig.mMinSamples)
    , mMaxSamples(orig.mMaxSamples)
 {
-   Paste(0, &orig);
+   if (orig.mRust) {
+      mRust = orig.mRust->Clone();
+      mSampleFormat = floatSample;
+      mNumSamples = mRust ? orig.GetNumSamples() : sampleCount(0);
+   }
+   else
+      Paste(0, &orig);
 }
 
 Sequence::~Sequence()
 {
+}
+
+sampleCount Sequence::GetNumSamples() const
+{
+   if (mRust)
+      return sampleCount(mRust->Frames());
+   return mNumSamples;
+}
+
+void Sequence::AdoptRustSequence(std::shared_ptr<RustSequence> sequence)
+{
+   mRust = std::move(sequence);
+   mSampleFormat = floatSample;
+   mMinSamples = sMaxDiskBlockSize / SAMPLE_SIZE(mSampleFormat) / 2;
+   mMaxSamples = mMinSamples * 2;
+   mBlock.clear();
+   mNumSamples = mRust ? sampleCount(mRust->Frames()) : sampleCount(0);
 }
 
 size_t Sequence::GetMaxBlockSize() const
@@ -112,6 +172,8 @@ bool Sequence::Unlock()
 
 sampleFormat Sequence::GetSampleFormat() const
 {
+   if (mRust)
+      return floatSample;
    return mSampleFormat;
 }
 
@@ -154,6 +216,14 @@ namespace {
 bool Sequence::ConvertToSampleFormat(sampleFormat format)
 // STRONG-GUARANTEE
 {
+   if (mRust) {
+      // The Rust store is always float.  Converting to float is a no-op;
+      // converting to an integer format needs the legacy block path first.
+      if (format == floatSample)
+         return false;
+      MaterializeRust();
+   }
+
    if (format == mSampleFormat)
       // no change
       return false;
@@ -237,6 +307,12 @@ bool Sequence::ConvertToSampleFormat(sampleFormat format)
 std::pair<float, float> Sequence::GetMinMax(
    sampleCount start, sampleCount len, bool mayThrow) const
 {
+   if (mRust) {
+      if (len <= 0)
+         return { 0.f, 0.f };
+      return mRust->MinMax(start.as_long_long(), len.as_long_long());
+   }
+
    if (len == 0 || mBlock.size() == 0) {
       return {
          0.f,
@@ -318,6 +394,12 @@ std::pair<float, float> Sequence::GetMinMax(
 
 float Sequence::GetRMS(sampleCount start, sampleCount len, bool mayThrow) const
 {
+   if (mRust) {
+      if (len <= 0)
+         return 0.f;
+      return mRust->Rms(start.as_long_long(), len.as_long_long());
+   }
+
    // len is the number of samples that we want the rms of.
    // it may be longer than a block, and the code is carefully set up to handle that.
    if (len == 0 || mBlock.size() == 0)
@@ -386,6 +468,15 @@ float Sequence::GetRMS(sampleCount start, sampleCount len, bool mayThrow) const
 std::unique_ptr<Sequence> Sequence::Copy(sampleCount s0, sampleCount s1) const
 {
    auto dest = std::make_unique<Sequence>(mDirManager, mSampleFormat);
+   if (mRust) {
+      if (s1 <= s0 || s0 < 0 || s0 >= GetNumSamples() || s1 < 0)
+         return dest;
+      auto slice = mRust->Slice(s0.as_long_long(),
+         (s1 - s0).as_long_long());
+      dest->AdoptRustSequence(std::move(slice));
+      return dest;
+   }
+
    if (s0 >= s1 || s0 >= mNumSamples || s1 < 0) {
       return dest;
    }
@@ -473,6 +564,40 @@ namespace {
 void Sequence::Paste(sampleCount s, const Sequence *src)
 // STRONG-GUARANTEE
 {
+   if (mRust) {
+      if (s < 0 || s > GetNumSamples())
+         THROW_INCONSISTENCY_EXCEPTION;
+
+      const auto added = src->GetNumSamples();
+      if (added <= 0)
+         return;
+      if (Overflows((GetNumSamples().as_double()) + (added.as_double())))
+         THROW_INCONSISTENCY_EXCEPTION;
+
+      std::vector<float> samples(added.as_size_t());
+      if (!src->Get((samplePtr)samples.data(), floatSample, 0,
+             samples.size(), true))
+         THROW_INCONSISTENCY_EXCEPTION;
+
+      mRust->Insert(s.as_long_long(), samples.data(), samples.size());
+      return;
+   }
+
+   if (src->mRust) {
+      // A Rust-backed clipboard pasted into a legacy block-file sequence:
+      // materialize a temporary legacy sequence and use the old path.
+      Sequence temp(mDirManager, floatSample);
+      const auto added = src->GetNumSamples();
+      std::vector<float> samples(added.as_size_t());
+      if (added > 0 &&
+          !src->Get((samplePtr)samples.data(), floatSample, 0,
+             samples.size(), true))
+         THROW_INCONSISTENCY_EXCEPTION;
+      temp.Append((samplePtr)samples.data(), floatSample, samples.size());
+      Paste(s, &temp);
+      return;
+   }
+
    if ((s < 0) || (s > mNumSamples))
    {
       wxLogError(
@@ -676,6 +801,18 @@ void Sequence::SetSilence(sampleCount s0, sampleCount len)
 void Sequence::InsertSilence(sampleCount s0, sampleCount len)
 // STRONG-GUARANTEE
 {
+   if (mRust) {
+      if (len < 0 ||
+          Overflows((GetNumSamples().as_double()) + (len.as_double())))
+         THROW_INCONSISTENCY_EXCEPTION;
+      if (len == 0)
+         return;
+      if (s0 < 0 || s0 > GetNumSamples())
+         THROW_INCONSISTENCY_EXCEPTION;
+      mRust->InsertSilence(s0.as_long_long(), len.as_long_long());
+      return;
+   }
+
    // Quick check to make sure that it doesn't overflow
    if (Overflows((mNumSamples.as_double()) + (len.as_double())))
       THROW_INCONSISTENCY_EXCEPTION;
@@ -744,12 +881,32 @@ void Sequence::AppendBlock
 
 sampleCount Sequence::GetBlockStart(sampleCount position) const
 {
+   if (mRust) {
+      // Rust stores the clip as one buffer, but WaveTrackCache still expects
+      // block-aligned refills.  Use the same nominal mMaxSamples boundaries as
+      // a legacy sequence so playback advances instead of rereading from 0.
+      if (position < 0)
+         return sampleCount(0);
+      const auto block = position.as_long_long() /
+         static_cast<long long>(mMaxSamples) *
+         static_cast<long long>(mMaxSamples);
+      return sampleCount(block);
+   }
+
    int b = FindBlock(position);
    return mBlock[b].start;
 }
 
 size_t Sequence::GetBestBlockSize(sampleCount start) const
 {
+   if (mRust) {
+      if (start < 0 || start >= GetNumSamples())
+         return mMaxSamples;
+      const auto offset =
+         start.as_long_long() % static_cast<long long>(mMaxSamples);
+      return mMaxSamples - static_cast<size_t>(offset);
+   }
+
    // This method returns a nice number of samples you should try to grab in
    // one big chunk in order to land on a block boundary, based on the starting
    // sample.  The value returned will always be nonzero and will be no larger
@@ -992,10 +1149,44 @@ XMLTagHandler *Sequence::HandleXMLChild(const wxChar *tag)
    }
 }
 
+void Sequence::MaterializeRust()
+{
+   if (!mRust)
+      return;
+
+   // Build a complete legacy sequence first, so a read or write failure
+   // leaves the live Rust sequence untouched.
+   Sequence temp(mDirManager, floatSample);
+   const auto total = mRust->Frames();
+   const auto chunk = std::max<size_t>(1, temp.GetIdealBlockSize());
+   std::vector<float> samples(chunk);
+   for (uint64_t position = 0; position < total; position += chunk) {
+      const auto count = static_cast<size_t>(
+         std::min<uint64_t>(chunk, total - position));
+      if (mRust->Read(position, count, samples.data()) != count)
+         THROW_INCONSISTENCY_EXCEPTION;
+      temp.Append((samplePtr)samples.data(), floatSample, count);
+   }
+
+   mBlock = std::move(temp.mBlock);
+   mNumSamples = temp.mNumSamples;
+   mMinSamples = temp.mMinSamples;
+   mMaxSamples = temp.mMaxSamples;
+   mSampleFormat = temp.mSampleFormat;
+   mRust.reset();
+}
+
 // Throws exceptions rather than reporting errors.
 void Sequence::WriteXML(XMLWriter &xmlFile) const
 // may throw
 {
+   if (mRust)
+      // Project save still speaks block files.  Converting in place keeps the
+      // new block files referenced by this sequence, so the orphan cleanup
+      // that runs after a save cannot delete them.  The live sequence becomes
+      // a legacy one; its samples are unchanged.
+      const_cast<Sequence *>(this)->MaterializeRust();
+
    unsigned int b;
 
    xmlFile.StartTag(wxT("sequence"));
@@ -1114,6 +1305,32 @@ bool Sequence::Read(samplePtr buffer, sampleFormat format,
 bool Sequence::Get(samplePtr buffer, sampleFormat format,
    sampleCount start, size_t len, bool mayThrow) const
 {
+   if (mRust) {
+      const auto total = GetNumSamples();
+      if (len == 0) {
+         if (start >= 0 && start <= total)
+            return true;
+         if (mayThrow)
+            THROW_INCONSISTENCY_EXCEPTION;
+         return false;
+      }
+
+      if (start < 0 || start > total || start + len > total) {
+         if (mayThrow)
+            THROW_INCONSISTENCY_EXCEPTION;
+         if (buffer)
+            ClearSamples(buffer, format, 0, len);
+         return false;
+      }
+
+      std::vector<float> samples(len);
+      const auto got = mRust->Read(start.as_long_long(), len, samples.data());
+      if (got < len)
+         std::fill(samples.begin() + got, samples.end(), 0.0f);
+      RustFloatToSamples(samples, buffer, format);
+      return got == len;
+   }
+
    if (start == mNumSamples) {
       return len == 0;
    }
@@ -1156,6 +1373,20 @@ void Sequence::SetSamples(samplePtr buffer, sampleFormat format,
                    sampleCount start, sampleCount len)
 // STRONG-GUARANTEE
 {
+   if (mRust) {
+      if (start < 0 || len < 0 || start + len > GetNumSamples())
+         THROW_INCONSISTENCY_EXCEPTION;
+
+      const auto count = len.as_size_t();
+      if (buffer) {
+         auto samples = RustSamplesToFloat(buffer, format, count);
+         mRust->Write(start.as_long_long(), samples.data(), samples.size());
+      }
+      else
+         mRust->SetSilence(start.as_long_long(), len.as_long_long());
+      return;
+   }
+
    const auto size = mBlock.size();
 
    if (start < 0 || start + len > mNumSamples)
@@ -1306,6 +1537,21 @@ struct MinMaxSumsq
 bool Sequence::GetWaveDisplay(float *min, float *max, float *rms, int* bl,
                               size_t len, const sampleCount *where) const
 {
+   if (mRust) {
+      if (len == 0 || !where)
+         return false;
+      if (std::max(sampleCount(0), where[0]) >= GetNumSamples())
+         return false;
+
+      std::vector<uint64_t> rustWhere(len + 1);
+      for (size_t i = 0; i <= len; ++i)
+         rustWhere[i] = static_cast<uint64_t>(
+            std::max<long long>(0, where[i].as_long_long()));
+
+      return mRust->WaveDisplayWhere(
+         rustWhere.data(), len, min, max, rms, bl);
+   }
+
    wxASSERT(len > 0);
    const auto s0 = std::max(sampleCount(0), where[0]);
    if (s0 >= mNumSamples)
@@ -1512,6 +1758,9 @@ bool Sequence::GetWaveDisplay(float *min, float *max, float *rms, int* bl,
 
 size_t Sequence::GetIdealAppendLen() const
 {
+   if (mRust)
+      return GetMaxBlockSize();
+
    int numBlocks = mBlock.size();
    const auto max = GetMaxBlockSize();
 
@@ -1529,6 +1778,16 @@ void Sequence::Append(samplePtr buffer, sampleFormat format,
                       size_t len, XMLWriter* blockFileLog /*=NULL*/)
 // STRONG-GUARANTEE
 {
+   if (mRust) {
+      if (len == 0)
+         return;
+      if (Overflows(GetNumSamples().as_double() + ((double)len)))
+         THROW_INCONSISTENCY_EXCEPTION;
+      auto samples = RustSamplesToFloat(buffer, format, len);
+      mRust->Append(samples.data(), samples.size());
+      return;
+   }
+
    if (len == 0)
       return;
 
@@ -1647,6 +1906,15 @@ void Sequence::Blockify
 void Sequence::Delete(sampleCount start, sampleCount len)
 // STRONG-GUARANTEE
 {
+   if (mRust) {
+      if (len == 0)
+         return;
+      if (len < 0 || start < 0 || start + len > GetNumSamples())
+         THROW_INCONSISTENCY_EXCEPTION;
+      mRust->Delete(start.as_long_long(), len.as_long_long());
+      return;
+   }
+
    if (len == 0)
       return;
 
@@ -1827,6 +2095,9 @@ void Sequence::Delete(sampleCount start, sampleCount len)
 
 void Sequence::ConsistencyCheck(const wxChar *whereStr, bool mayThrow) const
 {
+   if (mRust)
+      return;
+
    ConsistencyCheck(mBlock, mMaxSamples, 0, mNumSamples, whereStr, mayThrow);
 }
 

@@ -2420,8 +2420,21 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "19b30a45b0cd0bcca8037f3d0dc3421eaf95327a17cad11964fb8179b4fc4832"
 
 [[package]]
+name = "rustacity-backend"
+version = "0.1.0"
+dependencies = [
+ "hound",
+ "rustacity-engine",
+ "rustacity-io",
+]
+
+[[package]]
 name = "rustacity-dsp"
 version = "0.5.0"
+
+[[package]]
+name = "rustacity-engine"
+version = "0.1.0"
 
 [[package]]
 name = "rustacity-ext-api"
@@ -2467,6 +2480,15 @@ dependencies = [
  "eframe",
  "egui",
  "rustacity-ext-manager",
+]
+
+[[package]]
+name = "rustacity-io"
+version = "0.1.0"
+dependencies = [
+ "hound",
+ "rustacity-engine",
+ "thiserror 2.0.21",
 ]
 
 [[package]]

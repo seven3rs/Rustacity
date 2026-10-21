@@ -21,6 +21,26 @@ The **repair interpolation** has landed as well
 random numbers, which it now draws from a generator of its own so that a repair
 is reproducible.
 
+## The audio backend
+
+The **first backend slice has landed**: `rust/engine`, `rust/io` and
+`rust/backend` own the samples and edits behind a WAV-imported clip, while the
+existing wxWidgets project, track, clip and TrackPanel code stays in place.
+`Sequence` has a Rust path for reads, writes, append, insert, delete, silence,
+slice, min/max, RMS and waveform columns; legacy `.aup` block-file sequences
+keep the original path, and saving a Rust clip converts it to block files so
+the current project format survives.
+
+The next backend steps, in order:
+
+- a Rust project format that can save and reload without creating legacy block
+  files;
+- the remaining importers (FLAC, Ogg, FFmpeg, ...) either on the Rust decoder or
+  explicitly left on libsndfile;
+- project, track and undo metadata in Rust, so `Sequence` no longer has to
+  dispatch between two stores;
+- only then delete the C++ block-file implementation.
+
 ## The extension engine
 
 The point of moving the DSP to Rust is the extension engine named on the

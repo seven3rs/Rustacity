@@ -25,8 +25,8 @@ itself, and they are not our support desk.
 ## Building and testing
 
 Building the application needs a C++ toolchain, CMake, a Rust toolchain (the
-CMake build runs `cargo build --release` and links the result) and wxWidgets
-from the pinned fork. [README.md](README.md) has the short version and
+CMake build runs `cargo build --release` and links the Rust static libraries)
+and wxWidgets from the pinned fork. [README.md](README.md) has the short version and
 [`.github/workflows/cmake_build.yml](.github/workflows/cmake_build.yml) is the
 canonical per-platform recipe - what CI runs is what produces the releases.
 
@@ -40,9 +40,10 @@ cargo test --workspace
 Before pushing, run the checks CI runs first:
 
 ```sh
-cargo test --workspace             # unit tests and the golden-value tests
-python3 scripts/check_dsp_abi.py   # header and exports must agree
-python3 scripts/check_ext_abi.py   # extension header and FFI must agree
+cargo test --workspace               # unit tests, golden values and backend tests
+python3 scripts/check_dsp_abi.py     # header and exports must agree
+python3 scripts/check_ext_abi.py     # extension header and FFI must agree
+python3 scripts/check_backend_abi.py # audio backend header and FFI must agree
 ```
 
 CI then captures golden values, builds the extension crates and every example
@@ -56,12 +57,13 @@ platforms; expect a run to take about twenty minutes.
   size of a commit is not, because a reviewable commit is one idea.
 * Zero compiler warnings is the bar. `rust/dsp` is not held to clippy or to
   rustfmt — it carries lints from before the extension work — so match the code
-  around you by hand there. The extension crates are held to both in CI:
-  `cargo clippy --all-targets -- -D warnings` and `cargo fmt --check` over
-  `rustacity-ext-api`, `rustacity-ext-host` and `rustacity-ext-cli`, and the
-  manager crates, `rustacity-ext-manager` and `rustacity-ext-manager-gui`, are
-  held to both as well, and the same two gates over `rust/extensions` for
-  `wasm32-wasip1`.
+  around you by hand there. The audio backend and the extension crates are held
+  to both in CI: `cargo clippy --all-targets -- -D warnings` and
+  `cargo fmt --check` over `rustacity-backend`, `rustacity-engine`,
+  `rustacity-io`, `rustacity-ext-api`, `rustacity-ext-host` and
+  `rustacity-ext-cli`, and the manager crates, `rustacity-ext-manager` and
+  `rustacity-ext-manager-gui`, are held to both as well, and the same two gates
+  over `rust/extensions` for `wasm32-wasip1`.
 * **A port is not finished until the C++ implementation is deleted.** Capture
   the reference values while the C++ still exists - the loop is in
   [docs/goldens.md](docs/goldens.md) - and say so in the commit message when a

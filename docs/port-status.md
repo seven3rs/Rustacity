@@ -4,6 +4,35 @@ The audio maths moves from `src/` to `rust/dsp/src/`, one unit at a time,
 under the rule in [`docs/architecture.md`](architecture.md): a port is
 finished only when the C++ implementation is deleted. This is the ledger.
 
+## The audio backend boundary
+
+The first slice that moves more than maths is **WAV import and the samples
+behind a clip**. `rust/backend` owns one mono `Sequence` per WAV channel:
+storage, read/write, append, insert, delete, silence, slice, min/max, RMS and
+waveform columns. `PCMImportFileHandle` asks `RustBackend::ImportWav` for a
+WAV; the C++ `Sequence` adopts the resulting handle and delegates its sample
+and peak operations. The C++ project, track, clip, TrackPanel and dialogs are
+unchanged, so the visible application is still the wxWidgets editor.
+
+This is deliberately a **dual path**, not a finished port. Existing `.aup`
+block-file sequences and every non-WAV importer still use the original C++
+`BlockArray` implementation. A Rust-imported WAV is stored as float samples,
+regardless of the old preference that could choose `int16Sample`; playback and
+export are unaffected, but the clip reports the float format.
+`Sequence::WriteXML` converts a Rust-backed clip to legacy block files in
+place, so the current project format still saves and reloads it and the new
+block files stay referenced, which keeps the post-save orphan cleanup away
+from them. AutoSave writes the live tracks too, so the first autosave also
+materializes a still-Rust clip. Until that happens, the undo manager's
+disk-space estimate does not count the Rust buffer. What remains before the
+legacy C++ sequence path can be deleted:
+
+- a Rust project/clip format, so save no longer has to create block files;
+- moving the remaining importers (FLAC, Ogg, FFmpeg and the rest) onto the
+  Rust decoder, or keeping them on libsndfile deliberately;
+- project, track and undo metadata in Rust, so the C++ `Sequence` is no longer
+  the object that has to switch between two stores.
+
 ## Ported
 
 | unit | C++ maths it replaced | Rust | reference values |

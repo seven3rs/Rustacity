@@ -10,7 +10,7 @@ and which parts are inherited and must not be touched.
 | entry | what it is | in the build |
 | --- | --- | --- |
 | `src/` | the C++ application: the wxWidgets shell, the effect classes, the project and track model, the file formats | yes - `add_subdirectory( src )`, and `src/CMakeLists.txt` runs `cargo` and links the Rust cores |
-| `rust/` | the Rust DSP core, crate `rustacity-dsp`, the sandboxed extension engine, crate `rustacity-ext-host`, and the extension manager, crates `rustacity-ext-manager` and `rustacity-ext-manager-gui`, with the extensions themselves in `rust/extensions/` (see [`docs/architecture.md`](architecture.md)) | yes for the DSP core and the host - built by cargo and linked as static libraries; the manager programs are not part of the application's build |
+| `rust/` | the Rust DSP core, crate `rustacity-dsp`; the audio backend crates `rustacity-engine`, `rustacity-io` and `rustacity-backend`; the sandboxed extension engine, crate `rustacity-ext-host`; and the extension manager, crates `rustacity-ext-manager` and `rustacity-ext-manager-gui`, with the extensions themselves in `rust/extensions/` (see [`docs/architecture.md`](architecture.md)) | yes for the DSP core, the audio backend (one static library over `engine` and `io`) and the host - built by cargo and linked as static libraries; the manager programs are not part of the application's build |
 | `include/` | headers shared across `src/` | yes |
 | `lib-src/` | vendored third-party libraries (portaudio, libsndfile, LV2, libvorbis, ...) plus `lib-src/FileDialog/` | yes, through `cmake-proxies/` |
 | `cmake-proxies/` | the CMake project that builds each vendored library, plus the project's own CMake modules | yes |
@@ -20,7 +20,7 @@ and which parts are inherited and must not be touched.
 | `nyquist/` | the Nyquist language runtime resources and system plug-ins | yes |
 | `plug-ins/` | bundled Nyquist plug-ins | yes |
 | `presets/` | shipped preset data (`EQDefaultCurves.xml`) | yes |
-| `scripts/` | our tooling - `scripts/brand/`, the ABI gates `scripts/check_dsp_abi.py` and `scripts/check_ext_abi.py`, and `scripts/build-extensions.sh` - alongside inherited wiki and image utilities | partly |
+| `scripts/` | our tooling - `scripts/brand/`, the ABI gates `scripts/check_dsp_abi.py`, `scripts/check_ext_abi.py` and `scripts/check_backend_abi.py`, and `scripts/build-extensions.sh` - alongside inherited wiki and image utilities | partly |
 | `win/` | the Windows installers (`Inno_Setup_Wizard/` for the wizard, `wix/` for the MSI), the application resource script and the icon it embeds | yes for `rustacity.rc` and the icon; both installers are built in CI |
 | `mac/` | macOS bundle resources (`Resources/`), the bundle wrapper `Wrapper.c`, `Info.plist`, signing entitlements, and the local wxWidgets build helper | yes for `Wrapper.c` and `Resources/` |
 | `.github/` | CI - one workflow, `cmake_build.yml` | yes |
@@ -37,8 +37,8 @@ GitHub meta-files every contributor meets.
 
 - `src/`, and everything the Rust migration touches inside it.
 - `rust/`.
-- `scripts/brand/`, `scripts/check_dsp_abi.py`, `scripts/check_ext_abi.py` and
-  `scripts/build-extensions.sh`.
+- `scripts/brand/`, `scripts/check_dsp_abi.py`, `scripts/check_ext_abi.py`,
+  `scripts/check_backend_abi.py` and `scripts/build-extensions.sh`.
 - `docs/`, `examples/`, `README.md`, `NOTICE`, `SECURITY.md`,
   `.github/workflows/cmake_build.yml`.
 - The brand assets in `images/` and the icons and installer art in `win/` and

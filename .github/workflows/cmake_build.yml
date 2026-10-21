@@ -466,6 +466,25 @@ jobs:
       - name: Check the DSP ABI against its header
         run: python3 scripts/check_dsp_abi.py
 
+      # The audio backend's hand-written header must keep declaring exactly
+      # what rust/backend/src/ffi.rs exports.
+      - name: Check the backend ABI against its header
+        run: python3 scripts/check_backend_abi.py
+
+      - name: Clippy, for the audio backend
+        working-directory: rust
+        run: >
+          cargo clippy
+          -p rustacity-backend -p rustacity-engine -p rustacity-io
+          --all-targets -- -D warnings
+
+      - name: Formatting, for the audio backend
+        working-directory: rust
+        run: >
+          cargo fmt
+          -p rustacity-backend -p rustacity-engine -p rustacity-io
+          --check
+
   # =========================================================================
   # DSP: Capture reference values from the original C++ implementations
   #

@@ -15,8 +15,8 @@ only records what is easy to get wrong.
 
 ## Rust workspace and the two traps
 
-`rust/` is one cargo workspace (`dsp`, `ext-api`, `ext-host`, `ext-cli`, `ext-manager`,
-`ext-manager-gui`). Two things bite:
+`rust/` is one cargo workspace (`backend`, `dsp`, `engine`, `io`, `ext-api`, `ext-host`,
+`ext-cli`, `ext-manager`, `ext-manager-gui`). Two things bite:
 
 1. **`rust/extensions/` is a separate workspace, excluded from `rust/`.** A plain
    `cargo test --workspace` does **not** build or test it. It targets `wasm32-wasip1` and is
@@ -34,8 +34,9 @@ cargo test --workspace          # unit, golden-value and ext-host-into-wasm test
 
 ```sh
 cd rust && cargo test --workspace
-python3 scripts/check_dsp_abi.py   # rust/dsp/include/rustacity_dsp.h <-> dsp/src/ffi.rs
-python3 scripts/check_ext_abi.py   # rust/ext-host/include/rustacity_ext.h <-> ext-host/src/ffi.rs
+python3 scripts/check_dsp_abi.py     # rust/dsp/include/rustacity_dsp.h <-> dsp/src/ffi.rs
+python3 scripts/check_ext_abi.py     # rust/ext-host/include/rustacity_ext.h <-> ext-host/src/ffi.rs
+python3 scripts/check_backend_abi.py # rust/backend/include/rustacity_backend.h <-> backend/src/ffi.rs
 ```
 
 Adding or changing an ABI entry point means editing the hand-written header and `ffi.rs` in
@@ -43,12 +44,15 @@ the **same commit**, or these scripts fail.
 
 Clippy and `cargo fmt --check` are **scoped on purpose** — `rust/dsp` carries pre-existing
 lints and is *not* held to them; match its surrounding style by hand. The gates cover only
-`rustacity-ext-api`, `rustacity-ext-host`, `rustacity-ext-cli`, `rustacity-ext-manager`,
+`rustacity-backend`, `rustacity-engine`, `rustacity-io`, `rustacity-ext-api`,
+`rustacity-ext-host`, `rustacity-ext-cli`, `rustacity-ext-manager`,
 `rustacity-ext-manager-gui`, and the `rust/extensions` crates (for `wasm32-wasip1`):
 
 ```sh
-cd rust && cargo clippy -p rustacity-ext-api -p rustacity-ext-host -p rustacity-ext-cli \
-  -p rustacity-ext-manager -p rustacity-ext-manager-gui --all-targets -- -D warnings
+cd rust && cargo clippy -p rustacity-backend -p rustacity-engine -p rustacity-io \
+  -p rustacity-ext-api -p rustacity-ext-host -p rustacity-ext-cli \
+  -p rustacity-ext-manager -p rustacity-ext-manager-gui \
+  --all-targets -- -D warnings
 cd rust/extensions && cargo clippy --workspace --all-targets --target wasm32-wasip1 -- -D warnings
 ```
 
@@ -71,8 +75,9 @@ varies by platform). Details: `docs/goldens.md`, `docs/architecture.md`. Check
 ## Building the editor
 
 CMake is the only build; it runs `cargo build --release -p rustacity-dsp -p
-rustacity-ext-host` and links both static libraries, so a Rust toolchain is required. The
-full build also needs C++/CMake and the pinned wxWidgets fork (`audacity/wxWidgets`, branch
+rustacity-ext-host -p rustacity-backend` and links the static libraries, so a Rust
+toolchain is required. The full build also needs C++/CMake and the pinned wxWidgets fork
+(`audacity/wxWidgets`, branch
 `audacity-fixes-3.1.3`). `.github/workflows/cmake_build.yml` is the canonical per-platform
 recipe — follow the job for your OS rather than guessing. The manager crates are **not** part
 of the application build.

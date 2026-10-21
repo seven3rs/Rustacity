@@ -7,10 +7,14 @@ panic policy and the porting rule - is in
 [`docs/architecture.md`](../docs/architecture.md); this page is mostly that
 crate.
 
-The same workspace also holds the sandboxed WebAssembly extension engine
-(`ext-api`, `ext-host` and the `ext-cli` tool) and the extension manager
-(`ext-manager` and its window, `ext-manager-gui`), which are a separate subject
-with separate documentation: [`docs/extensions/API.md`](../docs/extensions/API.md),
+The same workspace also holds the audio backend (`engine`, `io` and `backend`),
+the sandboxed WebAssembly extension engine (`ext-api`, `ext-host` and the
+`ext-cli` tool) and the extension manager (`ext-manager` and its window,
+`ext-manager-gui`). The backend is described in
+[`docs/architecture.md`](../docs/architecture.md) and
+[`docs/port-status.md`](../docs/port-status.md); the extension engine is a
+separate subject with separate documentation:
+[`docs/extensions/API.md`](../docs/extensions/API.md),
 [`docs/extensions/SANDBOX.md`](../docs/extensions/SANDBOX.md),
 [`docs/extensions/WRITING_AN_EXTENSION.md`](../docs/extensions/WRITING_AN_EXTENSION.md),
 [`docs/extensions/MANAGER.md`](../docs/extensions/MANAGER.md) and
@@ -35,6 +39,13 @@ with separate documentation: [`docs/extensions/API.md`](../docs/extensions/API.m
 | `dsp/goldens/reference.txt` | reference values captured from the original C++ |
 | `dsp/goldens/capture/` | dumpers that print those values, one per port in progress |
 | `dsp/tests/` | golden-value tests that read that file |
+| `engine/src/` | project, tracks and the copy-on-write `AudioBuffer` |
+| `io/src/audio_file.rs` | the hound WAV decoder |
+| `io/src/peaks.rs` | the min/max peak pyramid behind the waveform |
+| `backend/src/sequence.rs` | one mono sequence: storage, edits, min/max, RMS, waveform columns |
+| `backend/src/import.rs` | WAV decode split into one sequence per channel |
+| `backend/src/ffi.rs` | the audio backend's C ABI, matching `backend/include/rustacity_backend.h` |
+| `backend/tests/backend.rs` | edit, waveform and WAV-import tests |
 | `ext-api/src/` | the extension API's manifest, error type and limits |
 | `ext-host/src/ffi.rs` | the extension host's C ABI, matching `ext-host/include/rustacity_ext.h` |
 | `ext-host/src/` | the sandbox: Wasmtime, the deadline, the memory ceiling, the log |
@@ -50,16 +61,19 @@ cd rust
 cargo test --workspace
 ```
 
-The DSP crate has no dependencies, so this needs nothing but a Rust toolchain.
-The extension host is the other way round: it bundles Wasmtime and Cranelift,
-which is why the C++ build asks for the two crates it links and nothing else
-(`cargo build --release -p rustacity-dsp -p rustacity-ext-host`, in
-`src/CMakeLists.txt`), and why a Rust toolchain is required to build Rustacity
-at all.
+The DSP crate itself has no dependencies. The backend stack adds `hound`,
+`thiserror` and the engine/io crates; the extension host bundles Wasmtime and
+Cranelift. A full workspace test therefore needs a Rust toolchain, network
+access for those crates, and the `wasm32-wasip1` target for the extension
+fixtures. The C++ build asks for the three crates it links and nothing else
+(`cargo build --release -p rustacity-dsp -p rustacity-ext-host -p
+rustacity-backend`, in `src/CMakeLists.txt`), and a Rust toolchain is required
+to build Rustacity at all.
 
 `scripts/check_dsp_abi.py` compares this crate's exports with the C header and
 is run by CI; run it yourself after touching either side.
-`scripts/check_ext_abi.py` does the same for the extension host.
+`scripts/check_ext_abi.py` does the same for the extension host, and
+`scripts/check_backend_abi.py` for the audio backend.
 
 ## Adding a module or an entry point
 
@@ -67,7 +81,7 @@ is run by CI; run it yourself after touching either side.
    add it to `lib.rs`.
 2. Expose it: a `#[no_mangle] pub extern "C"` function in `ffi.rs` under
    `ffi::guard`, plus a declaration in `dsp/include/rustacity_dsp.h`.
-3. Run `cargo test --workspace` and `python3 scripts/check_dsp_abi.py`.
+3. Run `cargo test --workspace` and the matching `scripts/check_*_abi.py`.
 
 The contract those functions have to keep - an opaque handle instead of one
 call per sample (the `rustacity_fft_*` entry points pass the caller-owned

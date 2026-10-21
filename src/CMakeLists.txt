@@ -245,6 +245,8 @@ list( APPEND SOURCES
       SelectedRegion.h
       SelectionState.cpp
       SelectionState.h
+      RustBackend.cpp
+      RustBackend.h
       Sequence.cpp
       Sequence.h
       Shuttle.cpp
@@ -1377,13 +1379,15 @@ source_group(
 )
 
 # =========================================================================
-# Rust cores (crates "rustacity-dsp" and "rustacity-ext-host" under rust/)
+# Rust cores (crates "rustacity-dsp", "rustacity-ext-host" and
+# "rustacity-backend" under rust/)
 #
-# The filter design and the sample processing live in Rust, and so does
-# the sandbox that runs WebAssembly extensions; one cargo build of the
-# workspace in rust/ produces both static libraries, which the
-# application links through the C ABIs in rust/dsp/include/rustacity_dsp.h
-# and rust/ext-host/include/rustacity_ext.h.
+# The filter design and the sample processing live in Rust, and so do the
+# sandbox that runs WebAssembly extensions and the audio buffers/edits the
+# editor's Sequence class reads.  One cargo build of the workspace in rust/
+# produces the static libraries, which the application links through the C
+# ABIs in rust/dsp/include/rustacity_dsp.h, rust/ext-host/include/rustacity_ext.h
+# and rust/backend/include/rustacity_backend.h.
 #
 # The extension *crates* are not here, and must not be: rust/extensions is
 # a workspace of its own, excluded from rust/Cargo.toml, so that a
@@ -1394,11 +1398,12 @@ list( APPEND INCLUDES
    PRIVATE
       ${topdir}/rust/dsp/include
       ${topdir}/rust/ext-host/include
+      ${topdir}/rust/backend/include
 )
 
 find_program( CARGO_EXECUTABLE cargo )
 if( NOT CARGO_EXECUTABLE )
-   message( FATAL_ERROR "cargo not found - the Rust DSP core is required" )
+   message( FATAL_ERROR "cargo not found - the Rust cores are required" )
 endif()
 
 if( WIN32 )
@@ -1409,18 +1414,22 @@ if( WIN32 )
    endif()
    set( RUST_DSP_LIB_NAME "rustacity_dsp.lib" )
    set( RUST_EXT_HOST_LIB_NAME "rustacity_ext.lib" )
+   set( RUST_BACKEND_LIB_NAME "rustacity_backend.lib" )
 elseif( APPLE )
    set( RUST_TARGET_TRIPLE "x86_64-apple-darwin" )
    set( RUST_DSP_LIB_NAME "librustacity_dsp.a" )
    set( RUST_EXT_HOST_LIB_NAME "librustacity_ext.a" )
+   set( RUST_BACKEND_LIB_NAME "librustacity_backend.a" )
 elseif( CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64" )
    set( RUST_TARGET_TRIPLE "aarch64-unknown-linux-gnu" )
    set( RUST_DSP_LIB_NAME "librustacity_dsp.a" )
    set( RUST_EXT_HOST_LIB_NAME "librustacity_ext.a" )
+   set( RUST_BACKEND_LIB_NAME "librustacity_backend.a" )
 else()
    set( RUST_TARGET_TRIPLE "x86_64-unknown-linux-gnu" )
    set( RUST_DSP_LIB_NAME "librustacity_dsp.a" )
    set( RUST_EXT_HOST_LIB_NAME "librustacity_ext.a" )
+   set( RUST_BACKEND_LIB_NAME "librustacity_backend.a" )
 endif()
 
 set( RUST_DSP_ROOT "${topdir}/rust" )
@@ -1428,39 +1437,49 @@ set( RUST_DSP_LIB
    "${RUST_DSP_ROOT}/target/${RUST_TARGET_TRIPLE}/release/${RUST_DSP_LIB_NAME}" )
 set( RUST_EXT_HOST_LIB
    "${RUST_DSP_ROOT}/target/${RUST_TARGET_TRIPLE}/release/${RUST_EXT_HOST_LIB_NAME}" )
+set( RUST_BACKEND_LIB
+   "${RUST_DSP_ROOT}/target/${RUST_TARGET_TRIPLE}/release/${RUST_BACKEND_LIB_NAME}" )
 
-# Everything that goes into the cargo build: a change to either crate, or
-# to the lock file, is a reason to build both libraries again.
+# Everything that goes into the cargo build: a change to any linked crate,
+# or to the lock file, is a reason to build all three libraries again.
 file( GLOB_RECURSE RUST_DSP_SOURCES CONFIGURE_DEPENDS
    "${RUST_DSP_ROOT}/dsp/src/*.rs" )
 file( GLOB_RECURSE RUST_EXT_HOST_SOURCES CONFIGURE_DEPENDS
    "${RUST_DSP_ROOT}/ext-api/src/*.rs"
    "${RUST_DSP_ROOT}/ext-host/src/*.rs" )
+file( GLOB_RECURSE RUST_BACKEND_SOURCES CONFIGURE_DEPENDS
+   "${RUST_DSP_ROOT}/backend/src/*.rs"
+   "${RUST_DSP_ROOT}/engine/src/*.rs"
+   "${RUST_DSP_ROOT}/io/src/*.rs" )
 list( APPEND RUST_DSP_SOURCES
    ${RUST_EXT_HOST_SOURCES}
+   ${RUST_BACKEND_SOURCES}
    "${RUST_DSP_ROOT}/Cargo.toml"
    "${RUST_DSP_ROOT}/Cargo.lock"
    "${RUST_DSP_ROOT}/dsp/Cargo.toml"
    "${RUST_DSP_ROOT}/ext-api/Cargo.toml"
    "${RUST_DSP_ROOT}/ext-host/Cargo.toml"
+   "${RUST_DSP_ROOT}/backend/Cargo.toml"
+   "${RUST_DSP_ROOT}/engine/Cargo.toml"
+   "${RUST_DSP_ROOT}/io/Cargo.toml"
 )
 
 # One custom command, because it is one cargo build.  The DSP core's
-# library is the output the build gates on, and the sandbox's is a
-# byproduct of the same command: a command with two outputs is one rule
-# per output to the Visual Studio generator, which would ask cargo for
-# the same build twice, and the Xcode generator refuses a command
-# attached to more than one target.  Both files are linked below.  Only
-# the two crates the application links are asked for - the workspace
-# also holds a command line tool, which the editor has no use for and
-# which would drag its WAV reader into this build.
+# library is the output the build gates on, and the sandbox and backend
+# libraries are byproducts of the same command: a command with three
+# outputs is one rule per output to the Visual Studio generator, which
+# would ask cargo for the same build three times, and the Xcode generator
+# refuses a command attached to more than one target.  All three files are
+# linked below.  Only the crates the application links are asked for; the
+# workspace also holds the extension command line tool, which the editor has
+# no use for.
 add_custom_command(
    OUTPUT "${RUST_DSP_LIB}"
-   BYPRODUCTS "${RUST_EXT_HOST_LIB}"
+   BYPRODUCTS "${RUST_EXT_HOST_LIB}" "${RUST_BACKEND_LIB}"
    COMMAND "${CARGO_EXECUTABLE}" build --release
            --target "${RUST_TARGET_TRIPLE}"
            --manifest-path "${RUST_DSP_ROOT}/Cargo.toml"
-           -p rustacity-dsp -p rustacity-ext-host
+           -p rustacity-dsp -p rustacity-ext-host -p rustacity-backend
    DEPENDS ${RUST_DSP_SOURCES}
    WORKING_DIRECTORY "${RUST_DSP_ROOT}"
    COMMENT "Building the Rust cores (${RUST_TARGET_TRIPLE})"
@@ -1470,8 +1489,9 @@ add_custom_command(
 # The one target that drives that command: the documentation for a custom
 # command used by more than one target is explicit that it belongs to a
 # single target on which the others depend.  It is named for the DSP core,
-# but it builds the sandbox too - the two libraries are one cargo
-# invocation, and there is no way to ask for one without the other.
+# but it builds the sandbox and the audio backend too - the three libraries
+# are one cargo invocation, and there is no way to ask for one without the
+# others.
 add_custom_target( rustacity_dsp DEPENDS "${RUST_DSP_LIB}" )
 add_dependencies( ${TARGET} rustacity_dsp )
 
@@ -1483,7 +1503,8 @@ target_link_options( ${TARGET} PRIVATE ${LDFLAGS} )
 target_link_libraries( ${TARGET} PRIVATE ${LIBRARIES} )
 
 # Link the Rust cores built above
-target_link_libraries( ${TARGET} PRIVATE "${RUST_DSP_LIB}" "${RUST_EXT_HOST_LIB}" )
+target_link_libraries( ${TARGET} PRIVATE
+   "${RUST_DSP_LIB}" "${RUST_EXT_HOST_LIB}" "${RUST_BACKEND_LIB}" )
 
 if( MSVC )
    # The Rust static library references Windows system libraries that

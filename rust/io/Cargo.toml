@@ -1,0 +1,12 @@
+[package]
+name = "rustacity-io"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Audio file formats for the Rustacity backend"
+
+[dependencies]
+hound.workspace = true
+rustacity-engine.workspace = true
+thiserror.workspace = true

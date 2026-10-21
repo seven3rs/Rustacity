@@ -34,9 +34,13 @@
 #include <wx/button.h>
 #include <wx/stattext.h>
 
+#include <utility>
+
 #include "sndfile.h"
 
 #include "../WaveClip.h"
+#include "../Sequence.h"
+#include "../RustBackend.h"
 #include "../ShuttleGui.h"
 
 #include "../ondemand/ODManager.h"
@@ -102,6 +106,9 @@ public:
    ByteCount GetFileUncompressedBytes() override;
    ProgressResult Import(TrackFactory *trackFactory, TrackHolders &outTracks,
               Tags *tags) override;
+
+   bool TryRustImport(TrackFactory *trackFactory, TrackHolders &outTracks,
+      ProgressResult &result);
 
    wxInt32 GetStreamCount() override { return 1; }
 
@@ -428,6 +435,12 @@ ProgressResult PCMImportFileHandle::Import(TrackFactory *trackFactory,
 
    CreateProgress();
 
+   ProgressResult updateResult = ProgressResult::Cancelled;
+   if (TryRustImport(trackFactory, outTracks, updateResult)) {
+      if (updateResult != ProgressResult::Success)
+         return updateResult;
+   }
+   else {
    NewChannelGroup channels(mInfo.channels);
 
    {
@@ -440,7 +453,6 @@ ProgressResult PCMImportFileHandle::Import(TrackFactory *trackFactory,
    auto fileTotalFrames =
       (sampleCount)mInfo.frames; // convert from sf_count_t
    auto maxBlockSize = channels.begin()->get()->GetMaxBlockSize();
-   auto updateResult = ProgressResult::Cancelled;
 
 #ifdef EXPERIMENTAL_OD_DATA
    // If the format is not seekable, we must use 'copy' mode,
@@ -599,6 +611,7 @@ ProgressResult PCMImportFileHandle::Import(TrackFactory *trackFactory,
 
    if (!channels.empty())
       outTracks.push_back(std::move(channels));
+   }
 
    const char *str;
 
@@ -791,6 +804,51 @@ ProgressResult PCMImportFileHandle::Import(TrackFactory *trackFactory,
 #endif
 
    return updateResult;
+}
+
+bool PCMImportFileHandle::TryRustImport(
+   TrackFactory *trackFactory, TrackHolders &outTracks, ProgressResult &result)
+{
+   const auto type = mInfo.format & SF_FORMAT_TYPEMASK;
+   if (type != SF_FORMAT_WAV && type != SF_FORMAT_WAVEX)
+      return false;
+
+   auto import = RustBackend::ImportWav(mFilename);
+   if (!import)
+      return false;
+
+   const auto channels = import->ChannelCount();
+   const auto rate = import->SampleRate();
+   if (channels == 0 || rate == 0 ||
+       channels != static_cast<size_t>(mInfo.channels))
+      return false;
+
+   result = mProgress->Update(0, 1);
+   if (result != ProgressResult::Success)
+      return true;
+
+   NewChannelGroup group;
+   group.reserve(channels);
+
+   for (size_t channel = 0; channel < channels; ++channel) {
+      auto sequence = import->TakeSequence(channel);
+      if (!sequence) {
+         outTracks.clear();
+         return false;
+      }
+
+      auto track = trackFactory->NewWaveTrack(floatSample, rate);
+      auto clip = track->RightmostOrNewClip();
+      clip->GetSequence()->AdoptRustSequence(std::move(sequence));
+      group.push_back(std::move(track));
+   }
+
+   result = mProgress->Update(1, 1);
+   if (result != ProgressResult::Success)
+      return true;
+
+   outTracks.push_back(std::move(group));
+   return true;
 }
 
 PCMImportFileHandle::~PCMImportFileHandle()

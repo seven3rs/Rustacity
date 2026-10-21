@@ -1,0 +1,17 @@
+[package]
+name = "rustacity-backend"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+publish.workspace = true
+description = "Audio buffers, edit operations and WAV import for the Rustacity C++ frontend"
+
+[lib]
+crate-type = ["staticlib", "rlib"]
+
+[dependencies]
+rustacity-engine.workspace = true
+rustacity-io.workspace = true
+
+[dev-dependencies]
+hound.workspace = true
