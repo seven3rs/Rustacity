@@ -126,8 +126,13 @@ Sidecars are treated as immutable once a project can refer to them, like
 legacy block files. A dirty Rust sequence gets a new sidecar on save; a clean
 one reuses the file it was loaded from. This also makes AutoSave safe: it
 writes the live tracks through `WriteXML`, but cannot overwrite the audio of
-the last saved project. A failed save writes a sibling `.rsq.tmp` and only
-renames it into place after every sample is flushed. A missing or corrupt
+the last saved project. While a replacement autosave or a normal save is
+being prepared, `DirManager` retains and locks every sidecar the old
+`.autosave` may still refer to; they are released only after the new save is
+committed and the old `.autosave` is removed, and are kept if the write
+fails, so the previous autosave stays recoverable. A failed save writes a
+sibling `.rsq.tmp` and renames it into place only after every sample is
+flushed. A missing or corrupt
 sidecar becomes the same silent `SilentBlockFile` fallback the legacy path
 uses for a missing `.au` block, and marks the sequence with `mErrorOpening`;
 a malformed file is left on disk so it can still be recovered by hand.

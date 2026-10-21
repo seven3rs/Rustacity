@@ -701,6 +701,8 @@ void ProjectManager::OnCloseWindow(wxCloseEvent & event)
    // The project is now either saved or the user doesn't want to save it,
    // so there's no need to keep auto save info around anymore
    projectFileIO.DeleteCurrentAutoSaveFile();
+   if (projectFileIO.GetAutoSaveFileName().empty())
+      DirManager::Get(project).ClearAutoSaveRetention();
 
    // DMM: Save the size of the last window the user closes
    //

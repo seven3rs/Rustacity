@@ -1221,6 +1221,53 @@ BlockFilePtr DirManager::NewBlockFile( const BlockFileFactory &factory )
    return newBlockFile;
 }
 
+void DirManager::BeginAutoSaveRetention()
+{
+   mAutoSaveRetaining = true;
+}
+
+void DirManager::EndAutoSaveRetention(bool commit)
+{
+   mAutoSaveRetaining = false;
+   if (!commit)
+      return;
+
+   for (const auto &file : mAutoSaveRetained)
+      if (file)
+         file->Unlock();
+   mAutoSaveRetained.clear();
+}
+
+void DirManager::RetainAutoSaveBlockFile(const BlockFilePtr &file)
+{
+   if (!mAutoSaveRetaining || !file)
+      return;
+
+   file->Lock();
+   mAutoSaveRetained.push_back(file);
+}
+
+void DirManager::ClearAutoSaveRetention()
+{
+   EndAutoSaveRetention(true);
+}
+
+DirManager::AutoSaveRetention::AutoSaveRetention(DirManager &dirManager)
+   : mDirManager(dirManager)
+{
+   mDirManager.BeginAutoSaveRetention();
+}
+
+DirManager::AutoSaveRetention::~AutoSaveRetention()
+{
+   mDirManager.EndAutoSaveRetention(mCommitted);
+}
+
+void DirManager::AutoSaveRetention::Commit()
+{
+   mCommitted = true;
+}
+
 bool DirManager::ContainsBlockFile(const BlockFile *b) const
 {
    if (!b)

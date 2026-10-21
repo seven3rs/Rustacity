@@ -495,6 +495,10 @@ bool ProjectFileManager::DoSave (const bool fromSaveAs,
    // And that cleanup is done by the destructor of saveFile, if PostCommit() is
    // not done.
    // (SetProject, when it fails, cleans itself up.)
+   Optional<DirManager::AutoSaveRetention> autoSaveRetention;
+   if (!projectFileIO.GetAutoSaveFileName().empty())
+      autoSaveRetention.emplace(dirManager);
+
    XMLFileWriter saveFile{ fileName, XO("Error Saving Project") };
    success = GuardedCall< bool >( [&] {
          projectFileIO.WriteXMLHeader(saveFile);
@@ -567,6 +571,16 @@ bool ProjectFileManager::DoSave (const bool fromSaveAs,
    {
       // Now that we have saved the file, we can DELETE the auto-saved version
       projectFileIO.DeleteCurrentAutoSaveFile();
+
+      // The old autosave, and any Rust sidecars it referred to, are no longer
+      // needed.  If removal failed, keep them so the old autosave stays valid.
+      if (projectFileIO.GetAutoSaveFileName().empty())
+      {
+         if (autoSaveRetention)
+            autoSaveRetention->Commit();
+         else
+            dirManager.ClearAutoSaveRetention();
+      }
 
       if ( projectFileIO.IsRecovered() )
       {

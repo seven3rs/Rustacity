@@ -17,6 +17,7 @@
 #include <functional>
 #include <memory>
 #include <unordered_map>
+#include <vector>
 
 #include "ClientData.h"
 
@@ -141,6 +142,33 @@ class PROFILE_DLL_API DirManager final
 
    using BlockFileFactory = std::function< BlockFilePtr( wxFileNameWrapper ) >;
    BlockFilePtr NewBlockFile( const BlockFileFactory &factory );
+
+   // An AutoSave file keeps referring to the Rust sidecars that existed when it
+   // was written.  While a replacement AutoSave is being prepared, retain (and
+   // lock) any sidecar that may be replaced so that the old .autosave file
+   // remains usable until the new one is committed.
+   void BeginAutoSaveRetention();
+   void EndAutoSaveRetention(bool commit);
+   void RetainAutoSaveBlockFile(const BlockFilePtr &file);
+   void ClearAutoSaveRetention();
+
+   // RAII helper for ProjectFileIO: begins retention on construction and
+   // releases it only after Commit(); otherwise the retained files survive.
+   class AutoSaveRetention
+   {
+   public:
+      explicit AutoSaveRetention(DirManager &dirManager);
+      ~AutoSaveRetention();
+
+      AutoSaveRetention(const AutoSaveRetention &) PROHIBITED;
+      AutoSaveRetention &operator=(const AutoSaveRetention &) PROHIBITED;
+
+      void Commit();
+
+   private:
+      DirManager &mDirManager;
+      bool mCommitted { false };
+   };
 
    /// Returns true if the blockfile pointed to by b is contained by the DirManager
    bool ContainsBlockFile(const BlockFile *b) const;
@@ -270,6 +298,9 @@ class PROFILE_DLL_API DirManager final
    size_t mLoadingBlockLen;
 
    size_t mMaxSamples; // max samples per block
+
+   bool mAutoSaveRetaining { false };
+   std::vector<BlockFilePtr> mAutoSaveRetained;
 
    unsigned long mLastBlockFileDestructionCount { 0 };
 

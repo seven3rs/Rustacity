@@ -1243,6 +1243,10 @@ void Sequence::SaveRustFile() const
    // already-saved project.
    const bool missingFile = mRustFile && mRustFile->GetSpaceUsage() == 0;
    if (!mRustFile || mRustDirty || missingFile) {
+      // If a save is in progress while an AutoSave file exists, that file may
+      // still refer to the sidecar we are about to replace. Let DirManager
+      // keep it alive until the save commits or the autosave is discarded.
+      mDirManager->RetainAutoSaveBlockFile(mRustFile);
       mRustFile = mDirManager->NewBlockFile(
          [this](wxFileNameWrapper filePath) {
             return make_blockfile<RustBlockFile>(

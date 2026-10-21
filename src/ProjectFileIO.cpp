@@ -580,6 +580,7 @@ void ProjectFileIO::AutoSave()
 {
    auto &project = mProject;
    auto &window = GetProjectFrame( project );
+   auto &dirManager = DirManager::Get( project );
    //    SonifyBeginAutoSave(); // part of RBD's r10680 stuff now backed out
 
    // To minimize the possibility of race conditions, we first write to a
@@ -594,6 +595,8 @@ void ProjectFileIO::AutoSave()
 
    wxString fn = wxFileName(FileNames::AutoSaveDir(),
       projName + wxString(wxT(" - ")) + CreateUniqueName()).GetFullPath();
+
+   DirManager::AutoSaveRetention retention{ dirManager };
 
    // PRL:  I found a try-catch and rewrote it,
    // but this guard is unnecessary because AutoSaveFile does not throw
@@ -629,6 +632,8 @@ void ProjectFileIO::AutoSave()
          &window);
       return;
    }
+
+   retention.Commit();
 
    mAutoSaveFileName += fn + wxT(".autosave");
    // no-op cruft that's not #ifdefed for NoteTrack
