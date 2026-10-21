@@ -140,11 +140,12 @@ uses for a missing `.au` block, and marks the sequence with `mErrorOpening`;
 a malformed file is left on disk so it can still be recovered by hand.
 
 That is still a bridge around the `.aup` project format, not the destination:
-a Rust project format will replace it. The legacy block-file path remains
-compiled for existing projects and non-WAV importers. This slice is therefore
-*not* a completed "delete the C++ maths" port: the C++ `Sequence` still
-contains the block-file implementation for legacy projects. The port-status
-ledger records the boundary and what remains.
+a Rust project format will replace it, and
+[`docs/project-format.md`](project-format.md) is the design for it. The legacy
+block-file path remains compiled for existing projects and non-WAV importers.
+This slice is therefore *not* a completed "delete the C++ maths" port: the C++
+`Sequence` still contains the block-file implementation for legacy projects.
+The port-status ledger records the boundary and what remains.
 
 ## Panic policy
 

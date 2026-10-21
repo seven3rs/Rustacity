@@ -32,10 +32,12 @@ so the previous autosave stays recoverable. Sequence copies share the Rust
 buffer copy-on-write, so the last-saved duplicate and undo snapshots do not
 clone a long clip just to exist. A missing or corrupt sidecar is
 replaced with silence.
+
 Until a Rust project format replaces the `.aup` wrapper, the sidecar is still
 referenced from the legacy XML, and the undo manager's disk-space estimate
-still does not count the Rust buffer. What remains before the legacy C++
-sequence path can be deleted:
+still does not count the Rust buffer. The format is designed in
+[`docs/project-format.md`](project-format.md). What remains before the legacy
+C++ sequence path can be deleted:
 
 - a Rust project/clip format beyond the `.rsq` sidecar, so the `.aup` wrapper
   and its clip metadata can move too;

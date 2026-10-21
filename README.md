@@ -138,6 +138,7 @@ CI captures golden values and builds the whole application on four platforms. A 
 | How reference ("golden") values are captured | [`docs/goldens.md`](docs/goldens.md) |
 | Writing extensions | `rust/ext-host/` <!-- link your extensions API doc here --> |
 | Roadmap | [`docs/roadmap.md`](docs/roadmap.md) |
+| The planned Rust project format | [`docs/project-format.md`](docs/project-format.md) |
 
 Using the editor itself works as it does in Audacity: see the [Audacity website](https://www.audacityteam.org/), [forum](https://forum.audacityteam.org/) and [developer wiki](https://wiki.audacityteam.org/wiki/For_Developers).
 

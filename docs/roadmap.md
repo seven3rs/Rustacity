@@ -40,7 +40,8 @@ importer still use the legacy block-file path.
 The next backend steps, in order:
 
 - turn the `.rsq` sidecar into a Rust project format, so clip metadata and the
-  project itself can move without an `.aup` wrapper;
+  project itself can move without an `.aup` wrapper; the design and its
+  incremental slices are in [`docs/project-format.md`](project-format.md);
 - the remaining importers (FLAC, Ogg, FFmpeg, ...) either on the Rust decoder or
   explicitly left on libsndfile;
 - project, track and undo metadata in Rust, so `Sequence` no longer has to
