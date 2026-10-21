@@ -202,8 +202,8 @@ class PROFILE_DLL_API DirManager final
    void FindMissingAUFs(
          BlockHash& missingAUFHash);               // output: missing (.auf) AliasBlockFiles
    void FindMissingAUs(
-         BlockHash& missingAUHash);                // missing data (.au) blockfiles
-   // Find .au and .auf files that are not in the project.
+         BlockHash& missingAUHash);                // missing data (.au or .rsq) blockfiles
+   // Find .au, .auf and .rsq files that are not in the project.
    void FindOrphanBlockFiles(
          const FilePaths &filePathArray,       // input: all files in project directory
          FilePaths &orphanFilePathArray);      // output: orphan files

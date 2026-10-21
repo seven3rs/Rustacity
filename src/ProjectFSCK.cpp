@@ -321,9 +321,9 @@ XO("Project check of \"%s\" folder \
    }
 
    //
-   // ORPHAN BLOCKFILES (.au and .auf files that are not in the project.)
+   // ORPHAN BLOCKFILES (.au, .auf and .rsq files that are not in the project.)
    //
-   FilePaths orphanFilePathArray;     // orphan .au and .auf files
+   FilePaths orphanFilePathArray;     // orphan .au, .auf and .rsq files
    dm.FindOrphanBlockFiles(filePathArray, orphanFilePathArray);
 
    if ((nResult != FSCKstatus_CLOSE_REQ) && !orphanFilePathArray.empty())

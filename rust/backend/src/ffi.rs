@@ -23,7 +23,7 @@ use std::panic::{catch_unwind, AssertUnwindSafe};
 use std::path::Path;
 use std::slice;
 
-use crate::{Import, Sequence};
+use crate::{persistence, Import, Sequence};
 
 /// Opaque handle for one mono sequence.
 #[derive(Debug)]
@@ -89,6 +89,67 @@ pub unsafe extern "C" fn rustacity_sequence_slice(
 pub unsafe extern "C" fn rustacity_sequence_frames(sequence: *const RustSequence) -> u64 {
     guard(0, || {
         as_sequence(sequence).map_or(0, |sequence| sequence.inner.frames())
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rustacity_sequence_sample_rate(sequence: *const RustSequence) -> u32 {
+    guard(0, || {
+        as_sequence(sequence).map_or(0, |sequence| sequence.inner.sample_rate())
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rustacity_sequence_new_silence(
+    frames: u64,
+    sample_rate: u32,
+) -> *mut RustSequence {
+    guard(std::ptr::null_mut(), || {
+        let Ok(frames) = usize::try_from(frames) else {
+            return std::ptr::null_mut();
+        };
+        match persistence::silence(frames, sample_rate) {
+            Ok(sequence) => boxed_sequence(sequence),
+            Err(_) => std::ptr::null_mut(),
+        }
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rustacity_sequence_save(
+    sequence: *const RustSequence,
+    utf8_path: *const c_char,
+) -> i32 {
+    guard(0, || {
+        let Some(sequence) = as_sequence(sequence) else {
+            return 0;
+        };
+        if utf8_path.is_null() {
+            return 0;
+        }
+        let Ok(path) = CStr::from_ptr(utf8_path).to_str() else {
+            return 0;
+        };
+        match persistence::save(&sequence.inner, Path::new(path)) {
+            Ok(()) => 1,
+            Err(_) => 0,
+        }
+    })
+}
+
+#[no_mangle]
+pub unsafe extern "C" fn rustacity_sequence_load(utf8_path: *const c_char) -> *mut RustSequence {
+    guard(std::ptr::null_mut(), || {
+        if utf8_path.is_null() {
+            return std::ptr::null_mut();
+        }
+        let Ok(path) = CStr::from_ptr(utf8_path).to_str() else {
+            return std::ptr::null_mut();
+        };
+        match persistence::load(Path::new(path)) {
+            Ok(sequence) => boxed_sequence(sequence),
+            Err(_) => std::ptr::null_mut(),
+        }
     })
 }
 

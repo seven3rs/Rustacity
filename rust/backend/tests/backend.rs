@@ -12,23 +12,28 @@ use rustacity_backend::ffi::{
     rustacity_import_channel_count, rustacity_import_free, rustacity_import_sample_rate,
     rustacity_import_take_sequence, rustacity_sequence_append_f32, rustacity_sequence_clone,
     rustacity_sequence_delete, rustacity_sequence_frames, rustacity_sequence_free,
-    rustacity_sequence_insert_f32, rustacity_sequence_insert_silence, rustacity_sequence_min_max,
-    rustacity_sequence_read_f32, rustacity_sequence_rms, rustacity_sequence_set_silence,
-    rustacity_sequence_slice, rustacity_sequence_wave_display, rustacity_sequence_write_f32,
-    rustacity_wav_import_open,
+    rustacity_sequence_insert_f32, rustacity_sequence_insert_silence, rustacity_sequence_load,
+    rustacity_sequence_min_max, rustacity_sequence_new_silence, rustacity_sequence_read_f32,
+    rustacity_sequence_rms, rustacity_sequence_sample_rate, rustacity_sequence_save,
+    rustacity_sequence_set_silence, rustacity_sequence_slice, rustacity_sequence_wave_display,
+    rustacity_sequence_write_f32, rustacity_wav_import_open,
 };
 use rustacity_backend::Sequence;
 
-fn temp_wav_path(label: &str) -> PathBuf {
+fn temp_path(label: &str, extension: &str) -> PathBuf {
     let stamp = SystemTime::now()
         .duration_since(UNIX_EPOCH)
         .expect("system clock before epoch")
         .as_nanos();
 
     std::env::temp_dir().join(format!(
-        "rustacity-backend-{}-{stamp}-{label}.wav",
+        "rustacity-backend-{}-{stamp}-{label}.{extension}",
         std::process::id()
     ))
+}
+
+fn temp_wav_path(label: &str) -> PathBuf {
+    temp_path(label, "wav")
 }
 
 fn write_stereo_wav(path: &PathBuf) {
@@ -243,5 +248,111 @@ fn wav_import_splits_channels_and_the_c_abi_reads_and_edits_them() {
         rustacity_sequence_free(right);
         rustacity_import_free(import);
     }
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn sequence_sidecar_round_trips_samples_and_rate() {
+    let path = temp_path("sidecar", "rsq");
+    let c_path = CString::new(path.to_str().expect("UTF-8 temp path")).expect("no NUL");
+
+    let source = unsafe { rustacity_sequence_new_silence(0, 48_000) };
+    assert!(!source.is_null());
+    assert_eq!(unsafe { rustacity_sequence_sample_rate(source) }, 48_000);
+    let samples = [0.125_f32, -0.25, 0.5, 0.0];
+    unsafe {
+        assert_eq!(
+            rustacity_sequence_write_f32(source, 0, samples.len(), samples.as_ptr()),
+            1
+        );
+        assert_eq!(rustacity_sequence_save(source, c_path.as_ptr()), 1);
+    }
+
+    let loaded = unsafe { rustacity_sequence_load(c_path.as_ptr()) };
+    assert!(!loaded.is_null());
+    assert_eq!(unsafe { rustacity_sequence_frames(loaded) }, 4);
+    assert_eq!(unsafe { rustacity_sequence_sample_rate(loaded) }, 48_000);
+    let mut restored = [0.0_f32; 4];
+    assert_eq!(
+        unsafe { rustacity_sequence_read_f32(loaded, 0, 4, restored.as_mut_ptr()) },
+        4
+    );
+    assert_eq!(restored, samples);
+
+    unsafe {
+        rustacity_sequence_free(source);
+        rustacity_sequence_free(loaded);
+    }
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn sequence_sidecar_replaces_an_existing_file() {
+    let path = temp_path("replaced-sidecar", "rsq");
+    let c_path = CString::new(path.to_str().expect("UTF-8 temp path")).expect("no NUL");
+
+    let source = unsafe { rustacity_sequence_new_silence(0, 44_100) };
+    assert!(!source.is_null());
+    let samples = [0.5_f32, -0.5];
+    unsafe {
+        assert_eq!(
+            rustacity_sequence_write_f32(source, 0, samples.len(), samples.as_ptr()),
+            1
+        );
+        assert_eq!(rustacity_sequence_save(source, c_path.as_ptr()), 1);
+        assert_eq!(rustacity_sequence_set_silence(source, 0, 2), 1);
+        assert_eq!(rustacity_sequence_save(source, c_path.as_ptr()), 1);
+    }
+
+    let loaded = unsafe { rustacity_sequence_load(c_path.as_ptr()) };
+    assert!(!loaded.is_null());
+    assert_eq!(unsafe { rustacity_sequence_frames(loaded) }, 2);
+    let mut restored = [1.0_f32; 2];
+    assert_eq!(
+        unsafe { rustacity_sequence_read_f32(loaded, 0, 2, restored.as_mut_ptr()) },
+        2
+    );
+    assert_eq!(restored, [0.0, 0.0]);
+
+    unsafe {
+        rustacity_sequence_free(source);
+        rustacity_sequence_free(loaded);
+    }
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn sequence_sidecar_round_trips_an_empty_sequence() {
+    let path = temp_path("empty-sidecar", "rsq");
+    let c_path = CString::new(path.to_str().expect("UTF-8 temp path")).expect("no NUL");
+
+    let source = unsafe { rustacity_sequence_new_silence(0, 44_100) };
+    assert!(!source.is_null());
+    assert_eq!(
+        unsafe { rustacity_sequence_save(source, c_path.as_ptr()) },
+        1
+    );
+
+    let loaded = unsafe { rustacity_sequence_load(c_path.as_ptr()) };
+    assert!(!loaded.is_null());
+    assert_eq!(unsafe { rustacity_sequence_frames(loaded) }, 0);
+    assert_eq!(unsafe { rustacity_sequence_sample_rate(loaded) }, 44_100);
+
+    unsafe {
+        rustacity_sequence_free(source);
+        rustacity_sequence_free(loaded);
+    }
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn sequence_sidecar_rejects_broken_files() {
+    let path = temp_path("broken", "rsq");
+    std::fs::write(&path, b"not a sequence").expect("write broken sidecar");
+    let c_path = CString::new(path.to_str().expect("UTF-8 temp path")).expect("no NUL");
+    let loaded = unsafe { rustacity_sequence_load(c_path.as_ptr()) };
+    assert!(loaded.is_null());
+    let missing = unsafe { rustacity_sequence_load(c_path.as_ptr()) };
+    assert!(missing.is_null());
     let _ = std::fs::remove_file(path);
 }

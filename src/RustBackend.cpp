@@ -46,9 +46,20 @@ uint64_t RustSequence::Frames() const
    return rustacity_sequence_frames(mHandle);
 }
 
+uint32_t RustSequence::SampleRate() const
+{
+   return rustacity_sequence_sample_rate(mHandle);
+}
+
 size_t RustSequence::Read(uint64_t start, size_t len, float *out) const
 {
    return rustacity_sequence_read_f32(mHandle, start, len, out);
+}
+
+bool RustSequence::Save(const FilePath &path) const
+{
+   const auto utf8 = path.utf8_str();
+   return rustacity_sequence_save(mHandle, utf8.data()) != 0;
 }
 
 void RustSequence::Write(uint64_t start, const float *input, size_t len)
@@ -147,4 +158,22 @@ std::unique_ptr<RustImport> RustBackend::ImportWav(const FilePath &path)
    if (!handle)
       return nullptr;
    return std::make_unique<RustImport>(handle);
+}
+
+std::shared_ptr<RustSequence> RustBackend::LoadSequence(const FilePath &path)
+{
+   const auto utf8 = path.utf8_str();
+   auto *handle = rustacity_sequence_load(utf8.data());
+   if (!handle)
+      return nullptr;
+   return std::make_shared<RustSequence>(handle);
+}
+
+std::shared_ptr<RustSequence> RustBackend::SilenceSequence(
+   uint64_t frames, uint32_t sampleRate)
+{
+   auto *handle = rustacity_sequence_new_silence(frames, sampleRate);
+   if (!handle)
+      return nullptr;
+   return std::make_shared<RustSequence>(handle);
 }

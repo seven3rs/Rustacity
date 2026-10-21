@@ -336,6 +336,8 @@ list( APPEND SOURCES
       blockfile/ODPCMAliasBlockFile.h
       blockfile/PCMAliasBlockFile.cpp
       blockfile/PCMAliasBlockFile.h
+      blockfile/RustBlockFile.cpp
+      blockfile/RustBlockFile.h
       blockfile/SilentBlockFile.cpp
       blockfile/SilentBlockFile.h
       blockfile/SimpleBlockFile.cpp

@@ -24,6 +24,7 @@ class BlockFile;
 using BlockFilePtr = std::shared_ptr<BlockFile>;
 
 class DirManager;
+class RustBlockFile;
 class RustSequence;
 class wxFileNameWrapper;
 
@@ -232,6 +233,13 @@ class PROFILE_DLL_API Sequence final : public XMLTagHandler{
 
    std::shared_ptr<RustSequence> mRust;
 
+   // The `.rsq` sidecar that currently represents mRust on disk.  It is kept
+   // alive here, not in mBlock, so the live sequence stays on the Rust path
+   // while DirManager still sees a normal BlockFile for save, locking and
+   // orphan cleanup.
+   mutable BlockFilePtr mRustFile;
+   mutable bool mRustDirty{ false };
+
    BlockArray    mBlock;
    sampleFormat  mSampleFormat;
 
@@ -252,10 +260,14 @@ class PROFILE_DLL_API Sequence final : public XMLTagHandler{
 
    int FindBlock(sampleCount pos) const;
 
+   // Write the current Rust samples to the `.rsq` sidecar, creating a new file
+   // when the sequence is dirty or the old sidecar is missing.  Saved sidecars
+   // are immutable; the last saved version keeps the old file alive.
+   void SaveRustFile() const;
+
    // Turn a Rust-backed sequence into the legacy block-file form.  Called
-   // from WriteXML (during a save) and before a sample-format conversion, so
-   // the project and the orphan-file cleanup see real block files instead of
-   // a Rust-only buffer.
+   // before a sample-format conversion, so an integer sequence has real block
+   // files instead of a float-only Rust buffer.
    void MaterializeRust();
 
    static void AppendBlock

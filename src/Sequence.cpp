@@ -42,6 +42,7 @@
 
 #include "DirManager.h"
 
+#include "blockfile/RustBlockFile.h"
 #include "blockfile/SilentBlockFile.h"
 #include "blockfile/SimpleBlockFile.h"
 
@@ -108,6 +109,11 @@ Sequence::Sequence(const Sequence &orig, const std::shared_ptr<DirManager> &proj
 {
    if (orig.mRust) {
       mRust = orig.mRust->Clone();
+      // Share the sidecar handle.  Locking a duplicate (the last saved
+      // version) then protects the file that the live sequence would
+      // otherwise overwrite on the next save.
+      mRustFile = orig.mRustFile;
+      mRustDirty = orig.mRustDirty;
       mSampleFormat = floatSample;
       mNumSamples = mRust ? orig.GetNumSamples() : sampleCount(0);
    }
@@ -129,6 +135,8 @@ sampleCount Sequence::GetNumSamples() const
 void Sequence::AdoptRustSequence(std::shared_ptr<RustSequence> sequence)
 {
    mRust = std::move(sequence);
+   mRustFile.reset();
+   mRustDirty = true;
    mSampleFormat = floatSample;
    mMinSamples = sMaxDiskBlockSize / SAMPLE_SIZE(mSampleFormat) / 2;
    mMaxSamples = mMinSamples * 2;
@@ -150,6 +158,8 @@ bool Sequence::Lock()
 {
    for (unsigned int i = 0; i < mBlock.size(); i++)
       mBlock[i].f->Lock();
+   if (mRustFile)
+      mRustFile->Lock();
 
    return true;
 }
@@ -158,6 +168,8 @@ bool Sequence::CloseLock()
 {
    for (unsigned int i = 0; i < mBlock.size(); i++)
       mBlock[i].f->CloseLock();
+   if (mRustFile)
+      mRustFile->CloseLock();
 
    return true;
 }
@@ -166,6 +178,8 @@ bool Sequence::Unlock()
 {
    for (unsigned int i = 0; i < mBlock.size(); i++)
       mBlock[i].f->Unlock();
+   if (mRustFile)
+      mRustFile->Unlock();
 
    return true;
 }
@@ -580,6 +594,8 @@ void Sequence::Paste(sampleCount s, const Sequence *src)
          THROW_INCONSISTENCY_EXCEPTION;
 
       mRust->Insert(s.as_long_long(), samples.data(), samples.size());
+      mNumSamples = sampleCount(mRust->Frames());
+      mRustDirty = true;
       return;
    }
 
@@ -810,6 +826,8 @@ void Sequence::InsertSilence(sampleCount s0, sampleCount len)
       if (s0 < 0 || s0 > GetNumSamples())
          THROW_INCONSISTENCY_EXCEPTION;
       mRust->InsertSilence(s0.as_long_long(), len.as_long_long());
+      mNumSamples = sampleCount(mRust->Frames());
+      mRustDirty = true;
       return;
    }
 
@@ -1074,6 +1092,64 @@ void Sequence::HandleXMLEndTag(const wxChar *tag)
    if (wxStrcmp(tag, wxT("sequence")) != 0)
       return;
 
+   if (mRustFile) {
+      auto sequence =
+         std::static_pointer_cast<RustBlockFile>(mRustFile)->TakeSequence();
+      if (sequence) {
+         const auto frames = sampleCount(sequence->Frames());
+         if (mNumSamples != frames) {
+            const auto framesText = Internat::ToString(frames.as_double(), 0);
+            const auto expectedText =
+               Internat::ToString(mNumSamples.as_double(), 0);
+            wxLogWarning(
+               wxT("Rust sequence file has %s frames, but the project says %s. Correcting the sequence sample count."),
+               framesText.wx_str(), expectedText.wx_str());
+            mNumSamples = frames;
+            mErrorOpening = true;
+         }
+
+         // The BlockFile is now just a file reference.  The live sequence owns
+         // the samples, so later edits cannot rewrite the saved sidecar.
+         mRust = std::move(sequence);
+         mRustDirty = false;
+         mBlock.clear();
+         mSampleFormat = floatSample;
+         mMinSamples = sMaxDiskBlockSize / SAMPLE_SIZE(mSampleFormat) / 2;
+         mMaxSamples = mMinSamples * 2;
+         return;
+      }
+
+      // The sidecar is missing or unreadable.  Keep the project's length but
+      // replace the whole clip with silence, as the legacy path does for a
+      // missing .au block.
+      sampleCount len = mNumSamples;
+      if (len <= 0)
+         len = sampleCount(mRustFile->GetLength());
+
+      // The saved project still names this file.  Do not let the fallback's
+      // destructor delete a malformed sidecar: keep the bytes for recovery.
+      mRustFile->Lock();
+      mRustFile.reset();
+      mRust.reset();
+      mBlock.clear();
+      // A Rust sidecar spans a whole clip, so a silence fallback may need more
+      // than one legacy block to keep the project length and pass the
+      // per-block limit enforced when a legacy sequence is written again.
+      sampleCount offset = 0;
+      while (offset < len) {
+         const auto blockLen =
+            std::min(len - offset, sampleCount(mMaxSamples));
+         mBlock.push_back(SeqBlock(
+            make_blockfile<SilentBlockFile>(blockLen.as_size_t()), offset));
+         offset += blockLen;
+      }
+      mNumSamples = len;
+      mSampleFormat = floatSample;
+      mErrorOpening = true;
+      wxLogWarning(
+         wxT("Missing Rust sequence file; replacing the clip with silence."));
+   }
+
    // Make sure that the sequence is valid.
    // First, replace missing blockfiles with SilentBlockFiles
    for (unsigned b = 0, nn = mBlock.size(); b < nn; b++) {
@@ -1143,10 +1219,43 @@ XMLTagHandler *Sequence::HandleXMLChild(const wxChar *tag)
 {
    if (!wxStrcmp(tag, wxT("waveblock")))
       return this;
+   else if (!wxStrcmp(tag, wxT("rustblockfile"))) {
+      mDirManager->SetLoadingFormat(floatSample);
+      mDirManager->SetLoadingTarget(
+         [this]() -> BlockFilePtr& { return mRustFile; });
+      return mDirManager.get();
+   }
    else {
       mDirManager->SetLoadingFormat(mSampleFormat);
       return mDirManager.get();
    }
+}
+
+void Sequence::SaveRustFile() const
+{
+   if (!mRust)
+      return;
+
+   // Sidecars are immutable once a project file refers to them, like legacy
+   // block files.  A dirty sequence gets a new file; the old one stays alive
+   // while the last-saved track duplicate or an undo state still holds it.
+   // This is also what keeps AutoSave from overwriting the audio of an
+   // already-saved project.
+   const bool missingFile = mRustFile && mRustFile->GetSpaceUsage() == 0;
+   if (!mRustFile || mRustDirty || missingFile) {
+      mRustFile = mDirManager->NewBlockFile(
+         [this](wxFileNameWrapper filePath) {
+            return make_blockfile<RustBlockFile>(
+               std::move(filePath), mRust);
+         });
+   }
+
+   if (!mRustFile)
+      THROW_INCONSISTENCY_EXCEPTION;
+
+   // A Rust sequence always reports floatSample, and every mutation keeps
+   // mNumSamples in step with mRust, so saving only has to update the sidecar.
+   mRustDirty = false;
 }
 
 void Sequence::MaterializeRust()
@@ -1173,6 +1282,8 @@ void Sequence::MaterializeRust()
    mMinSamples = temp.mMinSamples;
    mMaxSamples = temp.mMaxSamples;
    mSampleFormat = temp.mSampleFormat;
+   mRustFile.reset();
+   mRustDirty = false;
    mRust.reset();
 }
 
@@ -1180,12 +1291,24 @@ void Sequence::MaterializeRust()
 void Sequence::WriteXML(XMLWriter &xmlFile) const
 // may throw
 {
-   if (mRust)
-      // Project save still speaks block files.  Converting in place keeps the
-      // new block files referenced by this sequence, so the orphan cleanup
-      // that runs after a save cannot delete them.  The live sequence becomes
-      // a legacy one; its samples are unchanged.
-      const_cast<Sequence *>(this)->MaterializeRust();
+   if (mRust) {
+      // The samples stay in Rust.  The sidecar is a real BlockFile registered
+      // with DirManager, so ProjectSetter can copy or move it and the orphan
+      // cleanup can see that the project references it.
+      SaveRustFile();
+
+      xmlFile.StartTag(wxT("sequence"));
+      xmlFile.WriteAttr(wxT("maxsamples"), mMaxSamples);
+      xmlFile.WriteAttr(wxT("sampleformat"), (size_t)mSampleFormat);
+      xmlFile.WriteAttr(wxT("numsamples"), mNumSamples.as_long_long());
+      xmlFile.WriteAttr(wxT("rust"), (size_t)1);
+
+      if (mRustFile)
+         mRustFile->SaveXML(xmlFile);
+
+      xmlFile.EndTag(wxT("sequence"));
+      return;
+   }
 
    unsigned int b;
 
@@ -1384,6 +1507,7 @@ void Sequence::SetSamples(samplePtr buffer, sampleFormat format,
       }
       else
          mRust->SetSilence(start.as_long_long(), len.as_long_long());
+      mRustDirty = true;
       return;
    }
 
@@ -1785,6 +1909,8 @@ void Sequence::Append(samplePtr buffer, sampleFormat format,
          THROW_INCONSISTENCY_EXCEPTION;
       auto samples = RustSamplesToFloat(buffer, format, len);
       mRust->Append(samples.data(), samples.size());
+      mNumSamples = sampleCount(mRust->Frames());
+      mRustDirty = true;
       return;
    }
 
@@ -1912,6 +2038,8 @@ void Sequence::Delete(sampleCount start, sampleCount len)
       if (len < 0 || start < 0 || start + len > GetNumSamples())
          THROW_INCONSISTENCY_EXCEPTION;
       mRust->Delete(start.as_long_long(), len.as_long_long());
+      mNumSamples = sampleCount(mRust->Frames());
+      mRustDirty = true;
       return;
    }
 

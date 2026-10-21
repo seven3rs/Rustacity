@@ -19,6 +19,7 @@
 
 pub mod ffi;
 mod import;
+mod persistence;
 mod sequence;
 
 pub use import::Import;

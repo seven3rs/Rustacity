@@ -28,13 +28,19 @@ The **first backend slice has landed**: `rust/engine`, `rust/io` and
 existing wxWidgets project, track, clip and TrackPanel code stays in place.
 `Sequence` has a Rust path for reads, writes, append, insert, delete, silence,
 slice, min/max, RMS and waveform columns; legacy `.aup` block-file sequences
-keep the original path, and saving a Rust clip converts it to block files so
-the current project format survives.
+keep the original path.
+
+**Rust clips now persist without being materialized.** A Rust sequence is saved
+to a versioned `.rsq` sidecar through `RustBlockFile`, a real `BlockFile` that
+`DirManager` can copy, lock and clean up. The `.aup` XML names the sidecar
+directly under `<sequence>`, so save/reload preserves the Rust samples and the
+next save does not create `.au` blocks. Existing projects and every non-WAV
+importer still use the legacy block-file path.
 
 The next backend steps, in order:
 
-- a Rust project format that can save and reload without creating legacy block
-  files;
+- turn the `.rsq` sidecar into a Rust project format, so clip metadata and the
+  project itself can move without an `.aup` wrapper;
 - the remaining importers (FLAC, Ogg, FFmpeg, ...) either on the Rust decoder or
   explicitly left on libsndfile;
 - project, track and undo metadata in Rust, so `Sequence` no longer has to

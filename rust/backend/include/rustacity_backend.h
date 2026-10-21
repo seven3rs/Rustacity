@@ -60,6 +60,20 @@ void rustacity_sequence_free(rustacity_sequence *sequence);
 /* Frames in the sequence. */
 uint64_t rustacity_sequence_frames(const rustacity_sequence *sequence);
 
+/* Sample rate stored with the sequence, or zero for a NULL handle. */
+uint32_t rustacity_sequence_sample_rate(const rustacity_sequence *sequence);
+
+/* Build a silent sequence; the caller owns the returned handle. */
+rustacity_sequence *rustacity_sequence_new_silence(
+   uint64_t frames, uint32_t sample_rate);
+
+/* Write/read the versioned `.rsq` sidecar used by the C++ project format.
+ * Both use a UTF-8 path.  Loading returns NULL for a missing, truncated or
+ * unsupported file.  Returns 1 on success. */
+int rustacity_sequence_save(
+   const rustacity_sequence *sequence, const char *utf8_path);
+rustacity_sequence *rustacity_sequence_load(const char *utf8_path);
+
 /* Copy up to `frames` mono samples into `out`; returns frames written. */
 size_t rustacity_sequence_read_f32(
    const rustacity_sequence *sequence, uint64_t start, size_t frames, float *out);

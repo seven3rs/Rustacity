@@ -103,16 +103,41 @@ them. There are now two paths through that class:
   `GetBlockStart`, `GetBestBlockSize` and `GetIdealAppendLen` to it. The C++
   `WaveClip`, `WaveTrack`, TrackPanel, menu and dialogs are unchanged.
 
-`Sequence::WriteXML` converts a Rust-backed sequence into legacy block files in
-place before writing the project, so `.aup` save/reload still works
-without teaching the project reader a Rust format. That is a bridge, not the
-destination: a Rust project format will replace it. Until then, editing a
-WAV-imported clip creates a block file on save, and the legacy path remains
-compiled for existing projects.
+A Rust-backed sequence does not turn into `.au` files on save. It is written
+to a **`.rsq` sidecar** owned by a `RustBlockFile`, a normal `BlockFile`
+registered with `DirManager`:
 
-This slice is therefore *not* a completed "delete the C++ maths" port: the
-C++ `Sequence` still contains the block-file implementation for legacy
-projects. The port-status ledger records the boundary and what remains.
+- `Sequence` keeps the live `RustSequence` in `mRust` and the sidecar handle in
+  `mRustFile`; `mBlock` stays empty for this path.
+- `Sequence::WriteXML` writes `<sequence ... rust="1"><rustblockfile .../>`
+  and returns. There is no materialization step.
+- `RustBlockFile` implements `ReadData`, `ReadSummary`, `Copy`, `SaveXML`,
+  `BuildFromXML`, `GetSpaceUsage` and `Recover`, so `DirManager`,
+  `ProjectSetter`, `ProjectFSCK`, `CopyBlockFile` and orphan cleanup need no
+  Rust-specific branches. `DirManager` only exempts it from the legacy
+  per-block `mMaxSamples` limit and teaches the missing-file and orphan scans
+  about `.rsq`.
+- A `.rsq` file is a 32-byte header followed by little-endian `f32` samples.
+  The header is `RUSTSEQ1`, version 1, sample rate, one channel, format 1
+  (mono float), then the frame count. The Rust implementation is
+  `rust/backend/src/persistence.rs`; the format is private to the backend.
+
+Sidecars are treated as immutable once a project can refer to them, like
+legacy block files. A dirty Rust sequence gets a new sidecar on save; a clean
+one reuses the file it was loaded from. This also makes AutoSave safe: it
+writes the live tracks through `WriteXML`, but cannot overwrite the audio of
+the last saved project. A failed save writes a sibling `.rsq.tmp` and only
+renames it into place after every sample is flushed. A missing or corrupt
+sidecar becomes the same silent `SilentBlockFile` fallback the legacy path
+uses for a missing `.au` block, and marks the sequence with `mErrorOpening`;
+a malformed file is left on disk so it can still be recovered by hand.
+
+That is still a bridge around the `.aup` project format, not the destination:
+a Rust project format will replace it. The legacy block-file path remains
+compiled for existing projects and non-WAV importers. This slice is therefore
+*not* a completed "delete the C++ maths" port: the C++ `Sequence` still
+contains the block-file implementation for legacy projects. The port-status
+ledger records the boundary and what remains.
 
 ## Panic policy
 

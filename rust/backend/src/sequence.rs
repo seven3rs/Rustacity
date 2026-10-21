@@ -65,6 +65,14 @@ impl Sequence {
         })
     }
 
+    /// Build a sequence of `frames` silent samples.
+    pub fn silent(frames: usize, sample_rate: u32) -> Result<Self, AudioBufferError> {
+        let buffer = AudioBuffer::silent(frames, 1, sample_rate)?;
+        Ok(Self {
+            data: Mutex::new(SequenceData::new(buffer)),
+        })
+    }
+
     fn from_buffer(buffer: AudioBuffer) -> Self {
         Self {
             data: Mutex::new(SequenceData::new(buffer)),

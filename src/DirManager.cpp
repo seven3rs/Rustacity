@@ -1352,7 +1352,11 @@ bool DirManager::HandleXMLTag(const wxChar *tag, const wxChar **attrs)
    }
 
    // Check the length here so we don't have to do it in each BuildFromXML method.
-   if ((mMaxSamples != ~size_t(0)) && // is initialized
+   // A Rust sidecar is one file for a whole clip, so it is deliberately not
+   // bounded by the legacy block size.
+   const bool isRustBlockFile = !wxStrcmp(tag, wxT("rustblockfile"));
+   if (!isRustBlockFile &&
+         (mMaxSamples != ~size_t(0)) && // is initialized
          (pBlockFile->GetLength() > mMaxSamples))
    {
       // See http://bugzilla.audacityteam.org/show_bug.cgi?id=451#c13.
@@ -1654,7 +1658,7 @@ void DirManager::FindMissingAUFs(
 }
 
 void DirManager::FindMissingAUs(
-      BlockHash& missingAUHash)                 // missing data (.au) blockfiles
+      BlockHash& missingAUHash)                 // missing data (.au or .rsq) blockfiles
 {
    BlockHash::iterator iter = mBlockFileHash.begin();
    while (iter != mBlockFileHash.end())
@@ -1666,15 +1670,18 @@ void DirManager::FindMissingAUs(
       if (b) {
          if (!b->IsAlias())
          {
-            wxFileNameWrapper fileName{ MakeBlockFilePath(key) };
-            fileName.SetName(key);
-            fileName.SetExt(wxT("au"));
-            const auto path = fileName.GetFullPath();
-            if (!fileName.FileExists() ||
-                wxFile{ path }.Length() == 0)
-            {
-               missingAUHash[key] = b;
-               wxLogWarning(_("Missing data block file: '%s'"), path);
+            // Use the real file name: most blocks are .au, but a Rust
+            // sequence sidecar is .rsq and lives in the same directory tree.
+            auto result = b->GetFileName();
+            const auto &fileName = result.name;
+            if (fileName.IsOk() && !fileName.GetName().empty()) {
+               const auto path = fileName.GetFullPath();
+               if (!fileName.FileExists() ||
+                   wxFile{ path }.Length() == 0)
+               {
+                  missingAUHash[key] = b;
+                  wxLogWarning(_("Missing data block file: '%s'"), path);
+               }
             }
          }
       }
@@ -1682,7 +1689,7 @@ void DirManager::FindMissingAUs(
    }
 }
 
-// Find .au and .auf files that are not in the project.
+// Find .au, .auf and .rsq files that are not in the project.
 void DirManager::FindOrphanBlockFiles(
       const FilePaths &filePathArray,       // input: all files in project directory
       FilePaths &orphanFilePathArray)       // output: orphan files
@@ -1699,11 +1706,17 @@ void DirManager::FindOrphanBlockFiles(
       const wxFileName &fullname = filePathArray[i];
       wxString basename = fullname.GetName();
       const wxString ext{fullname.GetExt()};
+      // A .rsq save writes to a sibling temporary first.  A crash can leave
+      // that file behind after the rename never happened.
+      const bool isRustTemp = ext.IsSameAs(wxT("tmp"), false) &&
+         fullname.GetFullName().EndsWith(wxT(".rsq.tmp"));
       if ((mBlockFileHash.find(basename) == mBlockFileHash.end()) && // is orphan
             // Consider only Audacity data files.
             // Specifically, ignore <branding> JPG and <import> OGG ("Save Compressed Copy").
             (ext.IsSameAs(wxT("au"), false) ||
-               ext.IsSameAs(wxT("auf"), false)))
+               ext.IsSameAs(wxT("auf"), false) ||
+               ext.IsSameAs(wxT("rsq"), false) ||
+               isRustTemp))
       {
          // Ignore it if it exists in the clipboard (from a previously closed project)
          if ( std::any_of( otherDirManagers.begin(), otherDirManagers.end(),

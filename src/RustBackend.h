@@ -42,7 +42,9 @@ public:
    std::shared_ptr<RustSequence> Slice(uint64_t start, uint64_t len) const;
 
    uint64_t Frames() const;
+   uint32_t SampleRate() const;
    size_t Read(uint64_t start, size_t len, float *out) const;
+   bool Save(const FilePath &path) const;
    void Write(uint64_t start, const float *input, size_t len);
    void Append(const float *input, size_t len);
    void Insert(uint64_t start, const float *input, size_t len);
@@ -84,6 +86,14 @@ public:
    // file is not a WAV or cannot be decoded, so the caller can fall back to
    // the legacy libsndfile path.
    static std::unique_ptr<RustImport> ImportWav(const FilePath &path);
+
+   // Load a `.rsq` sidecar written by RustSequence::Save.  Returns null for a
+   // missing, truncated or unsupported file.
+   static std::shared_ptr<RustSequence> LoadSequence(const FilePath &path);
+
+   // Build a silent sequence, used to recover a missing sidecar.
+   static std::shared_ptr<RustSequence> SilenceSequence(
+      uint64_t frames, uint32_t sampleRate);
 };
 
 #endif // __RUSTACITY_RUSTBACKEND__

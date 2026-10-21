@@ -19,15 +19,21 @@ block-file sequences and every non-WAV importer still use the original C++
 `BlockArray` implementation. A Rust-imported WAV is stored as float samples,
 regardless of the old preference that could choose `int16Sample`; playback and
 export are unaffected, but the clip reports the float format.
-`Sequence::WriteXML` converts a Rust-backed clip to legacy block files in
-place, so the current project format still saves and reloads it and the new
-block files stay referenced, which keeps the post-save orphan cleanup away
-from them. AutoSave writes the live tracks too, so the first autosave also
-materializes a still-Rust clip. Until that happens, the undo manager's
-disk-space estimate does not count the Rust buffer. What remains before the
-legacy C++ sequence path can be deleted:
 
-- a Rust project/clip format, so save no longer has to create block files;
+Save no longer materializes a Rust clip. `Sequence::WriteXML` writes a
+`<sequence rust="1">` with one `<rustblockfile>` child, and `RustBlockFile`
+owns the versioned `.rsq` sidecar. `DirManager` sees it as an ordinary
+`BlockFile` for locking, copying, project checks and orphan cleanup; a dirty
+sequence writes a new sidecar instead of overwriting one that a saved project
+still references, which is also what keeps AutoSave from changing the audio
+behind a saved project. A missing or corrupt sidecar is replaced with silence.
+Until a Rust project format replaces the `.aup` wrapper, the sidecar is still
+referenced from the legacy XML, and the undo manager's disk-space estimate
+still does not count the Rust buffer. What remains before the legacy C++
+sequence path can be deleted:
+
+- a Rust project/clip format beyond the `.rsq` sidecar, so the `.aup` wrapper
+  and its clip metadata can move too;
 - moving the remaining importers (FLAC, Ogg, FFmpeg and the rest) onto the
   Rust decoder, or keeping them on libsndfile deliberately;
 - project, track and undo metadata in Rust, so the C++ `Sequence` is no longer
