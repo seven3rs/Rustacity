@@ -202,13 +202,11 @@ auto RustBlockFile::GetSpaceUsage() const -> DiskByteCount
 
 void RustBlockFile::Recover()
 {
-   auto sequence = LoadedSequence();
-   if (!sequence)
-      sequence = RustBackend::SilenceSequence(mLen, mSampleRate);
-   if (!sequence)
-      return;
-
-   SaveToDisk(sequence);
+   // The live samples belong to the Sequence, not this file reference.  A
+   // missing sidecar must never be replaced with silence here: if the project
+   // is saved afterwards, Sequence::SaveRustFile would reuse that silence and
+   // discard the samples still held in memory.  Leaving the file missing makes
+   // the next save write a fresh sidecar from the live sequence instead.
 }
 
 void RustBlockFile::SaveToDisk(const std::shared_ptr<RustSequence> &sequence)

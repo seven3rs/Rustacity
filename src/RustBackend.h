@@ -91,7 +91,7 @@ public:
    // missing, truncated or unsupported file.
    static std::shared_ptr<RustSequence> LoadSequence(const FilePath &path);
 
-   // Build a silent sequence, used to recover a missing sidecar.
+   // Build a silent sequence for callers that need an empty clip.
    static std::shared_ptr<RustSequence> SilenceSequence(
       uint64_t frames, uint32_t sampleRate);
 };

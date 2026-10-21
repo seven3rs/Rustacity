@@ -160,7 +160,7 @@ pub fn load(path: &Path) -> io::Result<Sequence> {
         .map_err(|error| invalid(&format!("the sequence file is invalid: {error}")))
 }
 
-/// Build a silent sequence for a missing sidecar recovery.
+/// Build a silent sequence for callers that need an empty clip.
 pub fn silence(frames: usize, sample_rate: u32) -> io::Result<Sequence> {
     Sequence::silent(frames, sample_rate)
         .map_err(|error| invalid(&format!("cannot create a silent sequence: {error}")))
