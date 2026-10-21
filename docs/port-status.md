@@ -26,7 +26,10 @@ owns the versioned `.rsq` sidecar. `DirManager` sees it as an ordinary
 `BlockFile` for locking, copying, project checks and orphan cleanup; a dirty
 sequence writes a new sidecar instead of overwriting one that a saved project
 still references, which is also what keeps AutoSave from changing the audio
-behind a saved project. A missing or corrupt sidecar is replaced with silence.
+behind a saved project. While a save or AutoSave replaces a sidecar, the old
+one is retained and locked until the new project or autosave file is committed,
+so the previous autosave stays recoverable. A missing or corrupt sidecar is
+replaced with silence.
 Until a Rust project format replaces the `.aup` wrapper, the sidecar is still
 referenced from the legacy XML, and the undo manager's disk-space estimate
 still does not count the Rust buffer. What remains before the legacy C++
