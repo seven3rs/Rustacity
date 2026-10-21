@@ -108,7 +108,10 @@ Sequence::Sequence(const Sequence &orig, const std::shared_ptr<DirManager> &proj
    , mMaxSamples(orig.mMaxSamples)
 {
    if (orig.mRust) {
-      mRust = orig.mRust->Clone();
+      // Copy-on-write.  The last-saved track duplicate and undo snapshots are
+      // mostly readers; they should not clone a long clip just to exist.  The
+      // first mutation below detaches this sequence from the shared buffer.
+      mRust = orig.mRust;
       // Share the sidecar handle.  Locking a duplicate (the last saved
       // version) then protects the file that the live sequence would
       // otherwise overwrite on the next save.
@@ -142,6 +145,17 @@ void Sequence::AdoptRustSequence(std::shared_ptr<RustSequence> sequence)
    mMaxSamples = mMinSamples * 2;
    mBlock.clear();
    mNumSamples = mRust ? sampleCount(mRust->Frames()) : sampleCount(0);
+}
+
+void Sequence::MakeRustUnique()
+{
+   if (!mRust || mRust.use_count() == 1)
+      return;
+
+   auto unique = mRust->Clone();
+   if (!unique)
+      THROW_INCONSISTENCY_EXCEPTION;
+   mRust = std::move(unique);
 }
 
 size_t Sequence::GetMaxBlockSize() const
@@ -593,6 +607,7 @@ void Sequence::Paste(sampleCount s, const Sequence *src)
              samples.size(), true))
          THROW_INCONSISTENCY_EXCEPTION;
 
+      MakeRustUnique();
       mRust->Insert(s.as_long_long(), samples.data(), samples.size());
       mNumSamples = sampleCount(mRust->Frames());
       mRustDirty = true;
@@ -825,6 +840,7 @@ void Sequence::InsertSilence(sampleCount s0, sampleCount len)
          return;
       if (s0 < 0 || s0 > GetNumSamples())
          THROW_INCONSISTENCY_EXCEPTION;
+      MakeRustUnique();
       mRust->InsertSilence(s0.as_long_long(), len.as_long_long());
       mNumSamples = sampleCount(mRust->Frames());
       mRustDirty = true;
@@ -1505,6 +1521,7 @@ void Sequence::SetSamples(samplePtr buffer, sampleFormat format,
          THROW_INCONSISTENCY_EXCEPTION;
 
       const auto count = len.as_size_t();
+      MakeRustUnique();
       if (buffer) {
          auto samples = RustSamplesToFloat(buffer, format, count);
          mRust->Write(start.as_long_long(), samples.data(), samples.size());
@@ -1912,6 +1929,7 @@ void Sequence::Append(samplePtr buffer, sampleFormat format,
       if (Overflows(GetNumSamples().as_double() + ((double)len)))
          THROW_INCONSISTENCY_EXCEPTION;
       auto samples = RustSamplesToFloat(buffer, format, len);
+      MakeRustUnique();
       mRust->Append(samples.data(), samples.size());
       mNumSamples = sampleCount(mRust->Frames());
       mRustDirty = true;
@@ -2041,6 +2059,7 @@ void Sequence::Delete(sampleCount start, sampleCount len)
          return;
       if (len < 0 || start < 0 || start + len > GetNumSamples())
          THROW_INCONSISTENCY_EXCEPTION;
+      MakeRustUnique();
       mRust->Delete(start.as_long_long(), len.as_long_long());
       mNumSamples = sampleCount(mRust->Frames());
       mRustDirty = true;

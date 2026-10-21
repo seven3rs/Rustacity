@@ -28,7 +28,9 @@ sequence writes a new sidecar instead of overwriting one that a saved project
 still references, which is also what keeps AutoSave from changing the audio
 behind a saved project. While a save or AutoSave replaces a sidecar, the old
 one is retained and locked until the new project or autosave file is committed,
-so the previous autosave stays recoverable. A missing or corrupt sidecar is
+so the previous autosave stays recoverable. Sequence copies share the Rust
+buffer copy-on-write, so the last-saved duplicate and undo snapshots do not
+clone a long clip just to exist. A missing or corrupt sidecar is
 replaced with silence.
 Until a Rust project format replaces the `.aup` wrapper, the sidecar is still
 referenced from the legacy XML, and the undo manager's disk-space estimate

@@ -231,6 +231,8 @@ class PROFILE_DLL_API Sequence final : public XMLTagHandler{
 
    std::shared_ptr<DirManager> mDirManager;
 
+   // Copies share this buffer until one of them edits it.  That keeps the
+   // last-saved track duplicate and undo snapshots from cloning every sample.
    std::shared_ptr<RustSequence> mRust;
 
    // The `.rsq` sidecar that currently represents mRust on disk.  It is kept
@@ -259,6 +261,9 @@ class PROFILE_DLL_API Sequence final : public XMLTagHandler{
    //
 
    int FindBlock(sampleCount pos) const;
+
+   // Detach mRust from any other Sequence snapshot before writing to it.
+   void MakeRustUnique();
 
    // Write the current Rust samples to the `.rsq` sidecar, creating a new file
    // when the sequence is dirty or the old sidecar is missing.  Saved sidecars

@@ -108,7 +108,9 @@ to a **`.rsq` sidecar** owned by a `RustBlockFile`, a normal `BlockFile`
 registered with `DirManager`:
 
 - `Sequence` keeps the live `RustSequence` in `mRust` and the sidecar handle in
-  `mRustFile`; `mBlock` stays empty for this path.
+  `mRustFile`; `mBlock` stays empty for this path. Sequence copies share
+  `mRust` copy-on-write: the last-saved duplicate and undo snapshots keep the
+  same buffer until one of them edits it.
 - `Sequence::WriteXML` writes `<sequence ... rust="1"><rustblockfile .../>`
   and returns. There is no materialization step.
 - `RustBlockFile` implements `ReadData`, `ReadSummary`, `Copy`, `SaveXML`,
