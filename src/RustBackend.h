@@ -91,6 +91,13 @@ public:
    // missing, truncated or unsupported file.
    static std::shared_ptr<RustSequence> LoadSequence(const FilePath &path);
 
+   // Read a version-2 `.rsq` clip record without decoding its samples.
+   // Returns false for a version-1 file or a missing/corrupt file, so the
+   // caller can fall back to LoadSequence.
+   static bool ReadSequenceMeta(const FilePath &path,
+      uint64_t *frames, uint32_t *sampleRate,
+      float *min, float *max, float *rms);
+
    // Build a silent sequence for callers that need an empty clip.
    static std::shared_ptr<RustSequence> SilenceSequence(
       uint64_t frames, uint32_t sampleRate);

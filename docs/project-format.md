@@ -30,8 +30,8 @@ through the backend ABI, exactly as it is today for samples and edits.
 | today | lives in | eventual owner |
 | --- | --- | --- |
 | mono sample buffer | `.rsq` sidecar / `RustSequence` | Rust clip record (already Rust-owned) |
-| sequence fields (`maxsamples`, `sampleformat`, `numsamples`, `rust`) | `.aup` `<sequence>` | Rust clip record |
-| sidecar fields (`len`, `min`, `max`, `rms`, `rate`) | `.aup` `<rustblockfile>` | Rust clip record |
+| clip audio fields (`frames`, `rate`, `min`, `max`, `rms`, sample format) | `.rsq` header v2 | Rust clip record (landed) |
+| sequence fields (`maxsamples`, `rust`) | `.aup` `<sequence>` | Rust clip record |
 | clip fields (`offset`, `colorindex`, cut lines) | `.aup` `<waveclip>` | Rust clip record |
 | envelope (`numpoints`, `<controlpoint>`) | `.aup` `<envelope>` | Rust clip record |
 | track fields (`name`, view, controls, `channel`, `linked`, `rate`, `gain`, `pan`, `colorindex`) | `.aup` `<wavetrack>` | Rust track record |
@@ -106,9 +106,10 @@ Records:
   tracks.
 - **CLPS**: one record per clip: a stable id, the track id, `offset`,
   `colorindex`, optional clip name, cut-line links, the envelope reference,
-  and an audio reference. The sequence fields (`maxsamples`, `sampleformat`,
-  `numsamples`, and the `len`/`min`/`max`/`rms`/`rate` of the audio) live with
-  the audio itself, in the `.rsq` metadata section.
+  and an audio reference. The fields the backend owns (`frames`, `rate`,
+  `min`, `max`, `rms`, sample format) already live with the audio itself, in
+  the version-2 `.rsq` header; `maxsamples` and the `rust` flag stay in the
+  C++ model until a later slice.
 - **ENVS**: one record per envelope: the owning clip id and the ordered
   `(t, val)` control points.
 - **AUDX**: the audio references, described next.
@@ -215,12 +216,12 @@ needed, it should be temporary and private to the backend.
 Each step is a commit that leaves the tree building and the legacy path
 unchanged.
 
-1. **Clip record v2.** Extend `.rsq` with a metadata section carrying the
-   sequence and sidecar fields (`len`, `rate`, `min`, `max`, `rms`,
-   `maxsamples`, sample format), keep the version-1 reader, and let
-   `RustBlockFile` read that section without loading the samples. This gives
-   the clip record its on-disk home and is testable entirely in the backend
-   crate.
+1. **Clip record v2 (landed).** `.rsq` now has a 64-byte version-2 header
+   carrying `frames`, `rate`, `min`, `max`, `rms` and the sample format, the
+   version-1 reader still loads the old 32-byte files, and
+   `rustacity_sequence_load_meta` lets `RustBlockFile` describe a clip from
+   the header without decoding the samples. `maxsamples` stays in the C++
+   model for now.
 2. **Project records and round trip.** Add `rust/backend/src/project.rs` with
    the container and the record types, save/load functions, and Rust unit
    tests for empty, truncated, unknown-section and Unicode cases. No C++ yet.

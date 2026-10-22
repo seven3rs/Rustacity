@@ -119,9 +119,16 @@ registered with `DirManager`:
   Rust-specific branches. `DirManager` only exempts it from the legacy
   per-block `mMaxSamples` limit and teaches the missing-file and orphan scans
   about `.rsq`.
-- A `.rsq` file is a 32-byte header followed by little-endian `f32` samples.
-  The header is `RUSTSEQ1`, version 1, sample rate, one channel, format 1
-  (mono float), then the frame count. The Rust implementation is
+- A `.rsq` file is a fixed header followed by little-endian `f32` samples. The
+  header carries the magic `RUSTSEQ1`, a version, the sample rate, one channel,
+  format 1 (mono float), and the frame count. Version 1 is 32 bytes; version 2
+  is 64 bytes and adds the clip record (`min`, `max`, `rms` and the sample
+  format), so `rustacity_sequence_load_meta` can describe a clip without
+  decoding its samples. The version-1 reader stays, because a sidecar is
+  immutable once a saved project refers to it. A `RustBlockFile` loading a
+  version-2 sidecar takes `len`, `rate`, `min`, `max` and `rms` from that
+  record and only decodes the samples when `TakeSequence` or `LoadedSequence`
+  asks for them. The Rust implementation is
   `rust/backend/src/persistence.rs`; the format is private to the backend.
 
 Sidecars are treated as immutable once a project can refer to them, like

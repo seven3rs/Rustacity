@@ -74,6 +74,15 @@ int rustacity_sequence_save(
    const rustacity_sequence *sequence, const char *utf8_path);
 rustacity_sequence *rustacity_sequence_load(const char *utf8_path);
 
+/* Read a version-2 sidecar's clip record without decoding its samples.
+ *
+ * `frames`, `sample_rate`, `min`, `max` and `rms` describe the sequence the
+ * file holds.  Returns 1 on success and 0 for a missing, truncated, malformed
+ * or version-1 file, so the caller can fall back to a full load. */
+int rustacity_sequence_load_meta(
+   const char *utf8_path, uint64_t *frames, uint32_t *sample_rate,
+   float *min, float *max, float *rms);
+
 /* Copy up to `frames` mono samples into `out`; returns frames written. */
 size_t rustacity_sequence_read_f32(
    const rustacity_sequence *sequence, uint64_t start, size_t frames, float *out);

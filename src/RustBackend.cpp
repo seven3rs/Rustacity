@@ -169,6 +169,17 @@ std::shared_ptr<RustSequence> RustBackend::LoadSequence(const FilePath &path)
    return std::make_shared<RustSequence>(handle);
 }
 
+bool RustBackend::ReadSequenceMeta(const FilePath &path,
+   uint64_t *frames, uint32_t *sampleRate,
+   float *min, float *max, float *rms)
+{
+   if (!frames || !sampleRate || !min || !max || !rms)
+      return false;
+   const auto utf8 = path.utf8_str();
+   return rustacity_sequence_load_meta(
+      utf8.data(), frames, sampleRate, min, max, rms) != 0;
+}
+
 std::shared_ptr<RustSequence> RustBackend::SilenceSequence(
    uint64_t frames, uint32_t sampleRate)
 {

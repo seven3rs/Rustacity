@@ -13,10 +13,10 @@ use rustacity_backend::ffi::{
     rustacity_import_take_sequence, rustacity_sequence_append_f32, rustacity_sequence_clone,
     rustacity_sequence_delete, rustacity_sequence_frames, rustacity_sequence_free,
     rustacity_sequence_insert_f32, rustacity_sequence_insert_silence, rustacity_sequence_load,
-    rustacity_sequence_min_max, rustacity_sequence_new_silence, rustacity_sequence_read_f32,
-    rustacity_sequence_rms, rustacity_sequence_sample_rate, rustacity_sequence_save,
-    rustacity_sequence_set_silence, rustacity_sequence_slice, rustacity_sequence_wave_display,
-    rustacity_sequence_write_f32, rustacity_wav_import_open,
+    rustacity_sequence_load_meta, rustacity_sequence_min_max, rustacity_sequence_new_silence,
+    rustacity_sequence_read_f32, rustacity_sequence_rms, rustacity_sequence_sample_rate,
+    rustacity_sequence_save, rustacity_sequence_set_silence, rustacity_sequence_slice,
+    rustacity_sequence_wave_display, rustacity_sequence_write_f32, rustacity_wav_import_open,
 };
 use rustacity_backend::Sequence;
 
@@ -354,5 +354,124 @@ fn sequence_sidecar_rejects_broken_files() {
     assert!(loaded.is_null());
     let missing = unsafe { rustacity_sequence_load(c_path.as_ptr()) };
     assert!(missing.is_null());
+    let _ = std::fs::remove_file(path);
+}
+
+/// A version-1 sidecar: the 32-byte header the backend wrote before the v2
+/// metadata section existed.
+fn write_version_1_sidecar(path: &PathBuf, sample_rate: u32, samples: &[f32]) {
+    let mut bytes = vec![0_u8; 32];
+    bytes[..8].copy_from_slice(b"RUSTSEQ1");
+    bytes[8..12].copy_from_slice(&1_u32.to_le_bytes());
+    bytes[12..16].copy_from_slice(&sample_rate.to_le_bytes());
+    bytes[16..20].copy_from_slice(&1_u32.to_le_bytes());
+    bytes[20..24].copy_from_slice(&1_u32.to_le_bytes());
+    bytes[24..32].copy_from_slice(&(samples.len() as u64).to_le_bytes());
+    for sample in samples {
+        bytes.extend_from_slice(&sample.to_le_bytes());
+    }
+    std::fs::write(path, bytes).expect("write v1 sidecar");
+}
+
+#[test]
+fn sequence_metadata_reads_without_loading_samples() {
+    let path = temp_path("metadata", "rsq");
+    let c_path = CString::new(path.to_str().expect("UTF-8 temp path")).expect("no NUL");
+
+    let source = unsafe { rustacity_sequence_new_silence(0, 8_000) };
+    assert!(!source.is_null());
+    let samples = [0.0_f32, 1.0, -1.0, 0.5];
+    unsafe {
+        assert_eq!(
+            rustacity_sequence_write_f32(source, 0, samples.len(), samples.as_ptr()),
+            1
+        );
+        assert_eq!(rustacity_sequence_save(source, c_path.as_ptr()), 1);
+    }
+
+    let mut frames = 0_u64;
+    let mut rate = 0_u32;
+    let mut min = 0.0_f32;
+    let mut max = 0.0_f32;
+    let mut rms = 0.0_f32;
+    assert_eq!(
+        unsafe {
+            rustacity_sequence_load_meta(
+                c_path.as_ptr(),
+                &mut frames,
+                &mut rate,
+                &mut min,
+                &mut max,
+                &mut rms,
+            )
+        },
+        1
+    );
+    assert_eq!(frames, 4);
+    assert_eq!(rate, 8_000);
+    assert!((min + 1.0).abs() < 1e-6);
+    assert!((max - 1.0).abs() < 1e-6);
+    assert!((rms - 0.75).abs() < 1e-6);
+
+    unsafe { rustacity_sequence_free(source) };
+    let _ = std::fs::remove_file(path);
+}
+
+#[test]
+fn sequence_metadata_reports_version_1_as_missing() {
+    let path = temp_path("v1-metadata", "rsq");
+    write_version_1_sidecar(&path, 44_100, &[0.25, -0.5, 0.75]);
+    let c_path = CString::new(path.to_str().expect("UTF-8 temp path")).expect("no NUL");
+
+    let mut frames = 0_u64;
+    let mut rate = 0_u32;
+    let mut min = 0.0_f32;
+    let mut max = 0.0_f32;
+    let mut rms = 0.0_f32;
+    assert_eq!(
+        unsafe {
+            rustacity_sequence_load_meta(
+                c_path.as_ptr(),
+                &mut frames,
+                &mut rate,
+                &mut min,
+                &mut max,
+                &mut rms,
+            )
+        },
+        0
+    );
+
+    // The version-1 reader still exposes the clip through the full load path,
+    // so the C++ fallback keeps working.
+    let loaded = unsafe { rustacity_sequence_load(c_path.as_ptr()) };
+    assert!(!loaded.is_null());
+    assert_eq!(unsafe { rustacity_sequence_frames(loaded) }, 3);
+    assert_eq!(unsafe { rustacity_sequence_sample_rate(loaded) }, 44_100);
+    let mut restored = [0.0_f32; 3];
+    assert_eq!(
+        unsafe { rustacity_sequence_read_f32(loaded, 0, 3, restored.as_mut_ptr()) },
+        3
+    );
+    assert_eq!(restored, [0.25, -0.5, 0.75]);
+
+    // A null path is rejected by the validated entry point.
+    assert_eq!(
+        unsafe {
+            rustacity_sequence_load_meta(
+                std::ptr::null(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+                std::ptr::null_mut(),
+            )
+        },
+        0
+    );
+
+    unsafe {
+        rustacity_sequence_free(loaded);
+    }
     let _ = std::fs::remove_file(path);
 }

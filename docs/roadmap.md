@@ -34,8 +34,11 @@ keep the original path.
 to a versioned `.rsq` sidecar through `RustBlockFile`, a real `BlockFile` that
 `DirManager` can copy, lock and clean up. The `.aup` XML names the sidecar
 directly under `<sequence>`, so save/reload preserves the Rust samples and the
-next save does not create `.au` blocks. Existing projects and every non-WAV
-importer still use the legacy block-file path.
+next save does not create `.au` blocks. The sidecar's version-2 header now
+carries the clip record (`frames`, `rate`, `min`, `max`, `rms`, sample format),
+so a clip can be described without decoding its samples; version-1 sidecars
+still load. Existing projects and every non-WAV importer still use the legacy
+block-file path.
 
 The next backend steps, in order:
 

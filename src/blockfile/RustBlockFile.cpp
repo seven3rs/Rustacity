@@ -66,8 +66,39 @@ RustBlockFile::RustBlockFile(
    mMax = max;
    mRMS = rms;
 
-   if (mFileName.HasName())
-      mSequence = RustBackend::LoadSequence(mFileName.GetFullPath());
+   if (!mFileName.HasName())
+      return;
+
+   // A version-2 sidecar carries its clip record, so the summary can be set
+   // from the file without decoding the samples.  TakeSequence or
+   // LoadedSequence decodes them on first use.  A version-1 or corrupt file
+   // has no metadata and is loaded eagerly instead.
+   uint64_t frames = 0;
+   uint32_t rate = 0;
+   float fileMin = 0.0f, fileMax = 0.0f, fileRms = 0.0f;
+   if (RustBackend::ReadSequenceMeta(mFileName.GetFullPath(),
+          &frames, &rate, &fileMin, &fileMax, &fileRms) &&
+       frames <= std::numeric_limits<size_t>::max()) {
+      const auto fileFrames = static_cast<size_t>(frames);
+      if (fileFrames != mLen) {
+         const auto name = mFileName.GetFullName();
+         wxLogWarning(
+            wxT("Rust sequence file %s has %llu frames, but the project says %llu. Using the file."),
+            name.wx_str(),
+            static_cast<unsigned long long>(fileFrames),
+            static_cast<unsigned long long>(mLen));
+         mLen = fileFrames;
+         mSummaryInfo = SummaryInfo(mLen);
+      }
+      if (rate != 0)
+         mSampleRate = rate;
+      mMin = fileMin;
+      mMax = fileMax;
+      mRMS = fileRms;
+      return;
+   }
+
+   mSequence = RustBackend::LoadSequence(mFileName.GetFullPath());
    if (mSequence) {
       const auto frames = static_cast<size_t>(mSequence->Frames());
       if (frames != mLen) {

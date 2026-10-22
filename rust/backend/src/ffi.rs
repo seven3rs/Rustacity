@@ -154,6 +154,42 @@ pub unsafe extern "C" fn rustacity_sequence_load(utf8_path: *const c_char) -> *m
 }
 
 #[no_mangle]
+pub unsafe extern "C" fn rustacity_sequence_load_meta(
+    utf8_path: *const c_char,
+    frames: *mut u64,
+    sample_rate: *mut u32,
+    min: *mut f32,
+    max: *mut f32,
+    rms: *mut f32,
+) -> i32 {
+    guard(0, || {
+        if utf8_path.is_null()
+            || frames.is_null()
+            || sample_rate.is_null()
+            || min.is_null()
+            || max.is_null()
+            || rms.is_null()
+        {
+            return 0;
+        }
+        let Ok(path) = CStr::from_ptr(utf8_path).to_str() else {
+            return 0;
+        };
+        match persistence::load_meta(Path::new(path)) {
+            Ok(meta) => {
+                *frames = meta.frames;
+                *sample_rate = meta.sample_rate;
+                *min = meta.min;
+                *max = meta.max;
+                *rms = meta.rms;
+                1
+            }
+            Err(_) => 0,
+        }
+    })
+}
+
+#[no_mangle]
 pub unsafe extern "C" fn rustacity_sequence_read_f32(
     sequence: *const RustSequence,
     start: u64,
